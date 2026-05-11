@@ -39,7 +39,7 @@ Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.h") "utility h
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.cpp") "utility source"
 
 Write-Step "Checking dependency layout"
-Assert-Path (Join-Path $addonsRoot "ofxGgml") "sibling ofxGgml addon" -Directory
+Assert-Path (Join-Path $addonsRoot "ofxGgmlCore") "sibling ofxGgmlCore addon" -Directory
 
 Write-Step "Checking example layout"
 $exampleRoot = Join-Path $addonRoot "ofxGgmlSamPointExample"

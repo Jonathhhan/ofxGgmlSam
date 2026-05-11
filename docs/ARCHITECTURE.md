@@ -1,6 +1,6 @@
 # Architecture
 
-`ofxGgmlSam` owns SAM-specific workflow code. It should use `ofxGgml` for the
+`ofxGgmlSam` owns SAM-specific workflow code. It should use `ofxGgmlCore` for the
 stable local inference foundation and keep segmentation UX out of the core
 addon.
 
@@ -18,7 +18,7 @@ addon.
 ```text
 openFrameworks app
   -> ofxGgmlSam
-      -> ofxGgml
+      -> ofxGgmlCore
 ```
 
-No dependency should point from `ofxGgml` back to `ofxGgmlSam`.
+No dependency should point from `ofxGgmlCore` back to `ofxGgmlSam`.

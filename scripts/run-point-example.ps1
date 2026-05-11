@@ -52,7 +52,7 @@ if ($Build) {
 		throw "-Build is currently implemented for generated Visual Studio projects only."
 	}
 	if (!(Test-Path -LiteralPath $projectPath -PathType Leaf)) {
-		throw "Visual Studio project was not found: $projectPath. Generate it with openFrameworks projectGenerator using addons ofxGgml and ofxGgmlSam."
+		throw "Visual Studio project was not found: $projectPath. Generate it with openFrameworks projectGenerator using addons ofxGgmlCore and ofxGgmlSam."
 	}
 	$msbuild = Get-MsBuild
 	if ([string]::IsNullOrWhiteSpace($msbuild)) {

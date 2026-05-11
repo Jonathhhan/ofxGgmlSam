@@ -22,11 +22,11 @@ Build a focused root-level `ofxGgmlSamPointExample`:
 
 ## Rules
 
-- `ofxGgmlSam` depends on `ofxGgml`.
-- `ofxGgml` must not depend on `ofxGgmlSam`.
+- `ofxGgmlSam` depends on `ofxGgmlCore`.
+- `ofxGgmlCore` must not depend on `ofxGgmlSam`.
 - Keep the first example narrow; do not recreate the old all-in-one GUI.
 - Do not commit model binaries or generated native build outputs.
-- Move code down into `ofxGgml` only when it is domain-neutral and tested.
+- Move code down into `ofxGgmlCore` only when it is domain-neutral and tested.
 - Keep `scripts\validate-local.*` passing.
 
 ## Later

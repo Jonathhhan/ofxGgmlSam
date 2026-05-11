@@ -1,7 +1,7 @@
 # ofxGgmlSam
 
 `ofxGgmlSam` is the companion addon for SAM/SAM2/SAM3 segmentation workflows on
-top of `ofxGgml`.
+top of `ofxGgmlCore`.
 
 This addon should hold the domain-specific pieces that do not belong in core:
 
@@ -11,8 +11,8 @@ This addon should hold the domain-specific pieces that do not belong in core:
 - segmentation examples and UI
 - sample image workflows
 
-`ofxGgml` remains the dependency. This addon must not be required by
-`ofxGgml`.
+`ofxGgmlCore` remains the dependency. This addon must not be required by
+`ofxGgmlCore`.
 
 The first public API is a small bridge backend:
 
@@ -23,7 +23,7 @@ The first public API is a small bridge backend:
 - normalized point and request validation helpers
 
 Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
-expanding core `ofxGgml`.
+expanding core `ofxGgmlCore`.
 
 ## Status
 
@@ -33,7 +33,7 @@ that loads a user-provided image and model path, then previews returned masks.
 ## Dependencies
 
 - openFrameworks
-- `ofxGgml`
+- `ofxGgmlCore`
 - `ofxImGui` for GUI examples only
 
 ## Validate
@@ -72,5 +72,5 @@ scripts\run-point-example.bat -DryRun
 ## Boundary
 
 Keep generic runtime, tensor, model metadata, result types, and backend setup in
-`ofxGgml`. Move only stable, domain-neutral primitives down into `ofxGgml` after
+`ofxGgmlCore`. Move only stable, domain-neutral primitives down into `ofxGgmlCore` after
 they have focused tests and no SAM-specific dependency.

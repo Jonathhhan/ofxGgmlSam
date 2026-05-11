@@ -1,2 +1,2 @@
-ofxGgml
+ofxGgmlCore
 ofxGgmlSam
