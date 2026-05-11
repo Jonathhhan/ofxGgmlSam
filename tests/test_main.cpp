@@ -1,4 +1,5 @@
 #include "ofxGgmlSam/ofxGgmlSamInference.h"
+#include "ofxGgmlSam/ofxGgmlSamUtils.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -18,8 +19,20 @@ int main() {
 	image.width = 2;
 	image.height = 2;
 	image.channels = 3;
+	image.pixels.assign(1, 255);
+	OFXGGMLSAM_EXPECT(!image.isAllocated());
 	image.pixels.assign(12, 255);
 	OFXGGMLSAM_EXPECT(image.isAllocated());
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateImage(image).isOk());
+
+	const auto clampedPoint = ofxGgmlSamMakePoint(2.0f, -1.0f, false);
+	OFXGGMLSAM_EXPECT(clampedPoint.x == 1.0f);
+	OFXGGMLSAM_EXPECT(clampedPoint.y == 0.0f);
+	OFXGGMLSAM_EXPECT(!clampedPoint.positive);
+
+	const auto pixelPoint = ofxGgmlSamMakePointFromPixels(1.0f, 1.0f, 3, 3);
+	OFXGGMLSAM_EXPECT(pixelPoint.x == 0.5f);
+	OFXGGMLSAM_EXPECT(pixelPoint.y == 0.5f);
 
 	ofxGgmlSamInference inference;
 	OFXGGMLSAM_EXPECT(!inference.isConfigured());
@@ -27,7 +40,8 @@ int main() {
 
 	ofxGgmlSamRequest request;
 	request.image = image;
-	request.points.push_back({ 0.5f, 0.5f, true });
+	request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(request).isOk());
 
 	const auto missing = inference.segment(request);
 	OFXGGMLSAM_EXPECT(missing.isError());
@@ -67,6 +81,11 @@ int main() {
 	inference.setBackend(nullptr);
 	OFXGGMLSAM_EXPECT(!inference.isConfigured());
 	OFXGGMLSAM_EXPECT(inference.segment(request).isError());
+
+	ofxGgmlSamRequest invalidRequest;
+	invalidRequest.image = image;
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(invalidRequest).isError());
+	OFXGGMLSAM_EXPECT(inference.segment(invalidRequest).isError());
 
 	return EXIT_SUCCESS;
 }

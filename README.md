@@ -20,6 +20,7 @@ The first public API is a small bridge backend:
 - `ofxGgmlSamBackend`
 - `ofxGgmlSamBridgeBackend`
 - `ofxGgmlSamRequest` and `ofxGgmlSamResult`
+- normalized point and request validation helpers
 
 Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
 expanding core `ofxGgml`.

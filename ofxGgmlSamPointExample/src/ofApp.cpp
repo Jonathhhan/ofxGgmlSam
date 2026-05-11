@@ -2,7 +2,7 @@
 
 void ofApp::setup() {
 	ofSetWindowTitle("ofxGgmlSam point example");
-	request.points.push_back({ 0.5f, 0.5f, true });
+	request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
 	lastResult = inference.segment(request);
 }
 

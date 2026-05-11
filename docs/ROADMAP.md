@@ -5,6 +5,7 @@
 Done:
 
 - public request/result types
+- normalized point and request validation helpers
 - bridge inference backend for future SAM adapters
 - headless bridge API tests
 - root-level point example skeleton

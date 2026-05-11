@@ -1,4 +1,5 @@
 #include "ofxGgmlSamInference.h"
+#include "ofxGgmlSamUtils.h"
 
 #include <utility>
 
@@ -28,11 +29,8 @@ ofxGgmlSamResult ofxGgmlSamBridgeBackend::segment(
 		return segmentFunction(request);
 	}
 
-	ofxGgmlSamResult result;
-	result.success = false;
-	result.errorMessage =
-		"ofxGgmlSam backend is not configured. Install or assign a SAM adapter first.";
-	return result;
+	return ofxGgmlSamMakeError(
+		"ofxGgmlSam backend is not configured. Install or assign a SAM adapter first.");
 }
 
 ofxGgmlSamInference::ofxGgmlSamInference()
@@ -66,6 +64,10 @@ std::string ofxGgmlSamInference::getBackendName() const {
 
 ofxGgmlSamResult ofxGgmlSamInference::segment(
 	const ofxGgmlSamRequest & request) const {
+	const auto validation = ofxGgmlSamValidateRequest(request);
+	if (!validation) {
+		return ofxGgmlSamMakeError(validation.errorMessage);
+	}
 	const auto backend = backendPtr ? backendPtr : createBridgeBackend();
 	return backend->segment(request);
 }

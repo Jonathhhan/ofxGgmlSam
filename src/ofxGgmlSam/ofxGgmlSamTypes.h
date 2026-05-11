@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -17,7 +18,10 @@ struct ofxGgmlSamImage {
 	std::vector<std::uint8_t> pixels;
 
 	bool isAllocated() const {
-		return width > 0 && height > 0 && channels > 0 && !pixels.empty();
+		return width > 0 && height > 0 && channels > 0 &&
+			pixels.size() == static_cast<std::size_t>(width) *
+				static_cast<std::size_t>(height) *
+				static_cast<std::size_t>(channels);
 	}
 };
 
