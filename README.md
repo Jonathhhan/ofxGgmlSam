@@ -50,6 +50,12 @@ On macOS/Linux:
 - preview mask overlay
 - report clear missing-model or missing-backend states
 
+Dry-run the current skeleton launcher:
+
+```powershell
+scripts\run-point-example.bat -DryRun
+```
+
 ## Boundary
 
 Keep generic runtime, tensor, model metadata, result types, and backend setup in

@@ -44,6 +44,9 @@ Assert-Path (Join-Path $exampleRoot "addons.make") "point example addons.make"
 Assert-Path (Join-Path $exampleRoot "src\main.cpp") "point example main.cpp"
 Assert-Path (Join-Path $exampleRoot "src\ofApp.h") "point example ofApp.h"
 Assert-Path (Join-Path $exampleRoot "src\ofApp.cpp") "point example ofApp.cpp"
+Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
+Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"
 
 $nestedExamples = Join-Path $addonRoot "examples"
 if (Test-Path -LiteralPath $nestedExamples -PathType Container) {
@@ -64,6 +67,18 @@ foreach ($relative in $forbidden) {
 	$path = Join-Path $addonRoot $relative
 	if (Test-Path -LiteralPath $path) {
 		throw "Generated or local-only path should not be committed here: $relative"
+	}
+}
+
+Write-Step "Checking point example launch dry-run"
+$dryRunOutput = try {
+	& (Join-Path $scriptRoot "run-point-example.ps1") -DryRun 2>&1 | Out-String
+} catch {
+	throw "Point example dry-run failed: $($_.Exception.Message)"
+}
+foreach ($expected in @("Example:    ofxGgmlSamPointExample", "Executable:", "Project:")) {
+	if ($dryRunOutput -notlike "*$expected*") {
+		throw "Point example dry-run did not include expected text: $expected"
 	}
 }
 

@@ -17,3 +17,9 @@ Run this before pushing:
 ```powershell
 scripts\validate-local.bat
 ```
+
+For the example launcher path:
+
+```powershell
+scripts\run-point-example.bat -DryRun
+```
