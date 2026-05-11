@@ -33,6 +33,8 @@ Assert-Path (Join-Path $addonRoot "README.md") "README"
 Assert-Path (Join-Path $addonRoot "LICENSE") "license"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam.h") "public header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "types header"
+Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.h") "inference header"
+Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.cpp") "inference source"
 
 Write-Step "Checking dependency layout"
 Assert-Path (Join-Path $addonsRoot "ofxGgml") "sibling ofxGgml addon" -Directory

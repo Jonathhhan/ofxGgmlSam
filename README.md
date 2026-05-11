@@ -14,6 +14,16 @@ This addon should hold the domain-specific pieces that do not belong in core:
 `ofxGgml` remains the dependency. This addon must not be required by
 `ofxGgml`.
 
+The first public API is a small bridge backend:
+
+- `ofxGgmlSamInference`
+- `ofxGgmlSamBackend`
+- `ofxGgmlSamBridgeBackend`
+- `ofxGgmlSamRequest` and `ofxGgmlSamResult`
+
+Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
+expanding core `ofxGgml`.
+
 ## Status
 
 Initial skeleton. The first useful milestone is a focused point-prompt example

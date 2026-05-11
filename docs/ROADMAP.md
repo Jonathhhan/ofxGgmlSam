@@ -2,6 +2,14 @@
 
 ## First Milestone
 
+Done:
+
+- public request/result types
+- bridge inference backend for future SAM adapters
+- root-level point example skeleton
+
+Next:
+
 Build a focused root-level `ofxGgmlSamPointExample`:
 
 - model path input

@@ -9,6 +9,7 @@ addon.
 | Layer | Scope |
 | --- | --- |
 | Public types | image, point, mask, request, result |
+| Bridge layer | `ofxGgmlSamInference` and replaceable backends |
 | Adapter layer | SAM/SAM2/SAM3 model-specific runtime integration |
 | Example layer | openFrameworks UI, image loading, mask preview |
 

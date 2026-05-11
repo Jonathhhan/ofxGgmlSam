@@ -10,4 +10,6 @@ public:
 
 private:
 	ofxGgmlSamRequest request;
+	ofxGgmlSamInference inference;
+	ofxGgmlSamResult lastResult;
 };
