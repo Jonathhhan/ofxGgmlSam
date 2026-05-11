@@ -23,6 +23,18 @@ function Assert-Path {
 	}
 }
 
+function Assert-FileContains {
+	param(
+		[string]$Path,
+		[string]$Pattern,
+		[string]$Label
+	)
+
+	$content = Get-Content -LiteralPath $Path -Raw
+	if ($content -notmatch $Pattern) {
+		throw "$Label did not contain expected pattern: $Pattern"
+	}
+}
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Split-Path -Parent $scriptRoot
 $addonsRoot = Split-Path -Parent $addonRoot
@@ -40,11 +52,13 @@ Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.cpp") "utility
 
 Write-Step "Checking dependency layout"
 Assert-Path (Join-Path $addonsRoot "ofxGgmlCore") "sibling ofxGgmlCore addon" -Directory
+Assert-Path (Join-Path $addonsRoot "ofxImGui") "sibling ofxImGui addon for examples" -Directory
 
 Write-Step "Checking example layout"
 $exampleRoot = Join-Path $addonRoot "ofxGgmlSamPointExample"
 Assert-Path $exampleRoot "root-level point example" -Directory
 Assert-Path (Join-Path $exampleRoot "addons.make") "point example addons.make"
+Assert-FileContains (Join-Path $exampleRoot "addons.make") "(?m)^ofxImGui\s*$" "example addons.make"
 Assert-Path (Join-Path $exampleRoot "src\main.cpp") "point example main.cpp"
 Assert-Path (Join-Path $exampleRoot "src\ofApp.h") "point example ofApp.h"
 Assert-Path (Join-Path $exampleRoot "src\ofApp.cpp") "point example ofApp.cpp"

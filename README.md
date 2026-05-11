@@ -36,7 +36,7 @@ that loads a user-provided image and model path, then previews returned masks.
 
 - openFrameworks
 - `ofxGgmlCore`
-- `ofxImGui` for GUI examples only
+- `ofxImGui` for examples
 
 ## Validate
 
