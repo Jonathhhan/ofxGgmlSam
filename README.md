@@ -14,6 +14,8 @@ This addon should hold the domain-specific pieces that do not belong in core:
 `ofxGgmlCore` remains the dependency. This addon must not be required by
 `ofxGgmlCore`.
 
+Family map: https://jonathhhan.github.io/ofxGgmlCore/
+
 The first public API is a small bridge backend:
 
 - `ofxGgmlSamInference`
