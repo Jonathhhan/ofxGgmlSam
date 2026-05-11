@@ -15,6 +15,7 @@ Before adding features:
 Run this before pushing:
 
 ```powershell
+scripts\test-addon.bat
 scripts\validate-local.bat
 ```
 

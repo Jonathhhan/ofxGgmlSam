@@ -49,6 +49,11 @@ Assert-Path (Join-Path $exampleRoot "src\ofApp.cpp") "point example ofApp.cpp"
 Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
 Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"
+Assert-Path (Join-Path $scriptRoot "test-addon.ps1") "test script"
+Assert-Path (Join-Path $scriptRoot "test-addon.bat") "test Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "test-addon.sh") "test shell wrapper"
+Assert-Path (Join-Path $addonRoot "tests\CMakeLists.txt") "test CMakeLists"
+Assert-Path (Join-Path $addonRoot "tests\test_main.cpp") "test source"
 
 $nestedExamples = Join-Path $addonRoot "examples"
 if (Test-Path -LiteralPath $nestedExamples -PathType Container) {
@@ -82,6 +87,12 @@ foreach ($expected in @("Example:    ofxGgmlSamPointExample", "Executable:", "Pr
 	if ($dryRunOutput -notlike "*$expected*") {
 		throw "Point example dry-run did not include expected text: $expected"
 	}
+}
+
+Write-Step "Running headless tests"
+& (Join-Path $scriptRoot "test-addon.ps1")
+if ($LASTEXITCODE -ne 0) {
+	throw "Headless tests failed with exit code $LASTEXITCODE"
 }
 
 Write-Step "ofxGgmlSam local validation passed"

@@ -40,12 +40,14 @@ that loads a user-provided image and model path, then previews returned masks.
 From the addon root:
 
 ```powershell
+scripts\test-addon.bat
 scripts\validate-local.bat
 ```
 
 On macOS/Linux:
 
 ```sh
+./scripts/test-addon.sh
 ./scripts/validate-local.sh
 ```
 
