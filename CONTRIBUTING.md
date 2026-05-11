@@ -11,3 +11,9 @@ Before adding features:
   sample media without a clear license
 - move code down into `ofxGgml` only when it is domain-neutral and tested
 - update `docs/ROADMAP.md` when the planned workflow changes
+
+Run this before pushing:
+
+```powershell
+scripts\validate-local.bat
+```

@@ -25,6 +25,20 @@ that loads a user-provided image and model path, then previews returned masks.
 - `ofxGgml`
 - `ofxImGui` for GUI examples only
 
+## Validate
+
+From the addon root:
+
+```powershell
+scripts\validate-local.bat
+```
+
+On macOS/Linux:
+
+```sh
+./scripts/validate-local.sh
+```
+
 ## Planned First Example
 
 `ofxGgmlSamPointExample`
