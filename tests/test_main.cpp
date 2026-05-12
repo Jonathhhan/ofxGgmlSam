@@ -1,5 +1,4 @@
-#include "ofxGgmlSam/ofxGgmlSamInference.h"
-#include "ofxGgmlSam/ofxGgmlSamUtils.h"
+#include "ofxGgmlSam.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -14,6 +13,12 @@
 	} while (false)
 
 int main() {
+	OFXGGMLSAM_EXPECT(OFXGGML_SAM_VERSION_MAJOR == 1);
+	OFXGGMLSAM_EXPECT(OFXGGML_SAM_VERSION_MINOR == 0);
+	OFXGGMLSAM_EXPECT(OFXGGML_SAM_VERSION_PATCH == 1);
+	OFXGGMLSAM_EXPECT(std::string(OFXGGML_SAM_VERSION_STRING) == "1.0.1");
+	OFXGGMLSAM_EXPECT(std::string(ofxGgmlSamGetVersionString()) == "1.0.1");
+
 	ofxGgmlSamImage image;
 	OFXGGMLSAM_EXPECT(!image.isAllocated());
 	image.width = 2;

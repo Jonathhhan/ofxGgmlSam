@@ -9,6 +9,7 @@ Done:
 - bridge inference backend for future SAM adapters
 - headless bridge API tests
 - root-level point example skeleton
+- independent addon version metadata
 
 Next:
 
