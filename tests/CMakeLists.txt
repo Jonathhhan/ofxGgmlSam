@@ -8,6 +8,7 @@ set(OFX_GGML_CORE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../ofxGgmlCore")
 
 add_executable(ofxGgmlSam_tests
 	test_main.cpp
+	../src/ofxGgmlSam/ofxGgmlSamExternalBackend.cpp
 	../src/ofxGgmlSam/ofxGgmlSamInference.cpp
 	../src/ofxGgmlSam/ofxGgmlSamUtils.cpp)
 

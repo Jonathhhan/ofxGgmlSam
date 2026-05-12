@@ -7,13 +7,15 @@ Done:
 - public request/result types
 - normalized point and request validation helpers
 - bridge inference backend for future SAM adapters
+- external SAM adapter boundary for local SAM/SAM2/SAM3 runner executables
 - headless bridge API tests
 - root-level point example skeleton
 - independent addon version metadata
 
 Next:
 
-Build a focused root-level `ofxGgmlSamPointExample`:
+Build a focused root-level `ofxGgmlSamPointExample` on top of the external
+adapter boundary:
 
 - model path input
 - image path input

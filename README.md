@@ -23,11 +23,18 @@ The first public API is a small bridge backend:
 - `ofxGgmlSamInference`
 - `ofxGgmlSamBackend`
 - `ofxGgmlSamBridgeBackend`
+- `ofxGgmlSamExternalBackend`
 - `ofxGgmlSamRequest` and `ofxGgmlSamResult`
 - normalized point and request validation helpers
 
 Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
 expanding core `ofxGgmlCore`.
+
+`ofxGgmlSamExternalBackend` is the first concrete adapter boundary. It writes
+the request image to a temporary PPM file, calls a user-provided local SAM
+executable with model/image/point/output flags, and reads a returned PGM mask
+into `ofxGgmlSamResult`. That keeps SAM, SAM2, and SAM3 runners opt-in while
+making the addon-side contract explicit and testable.
 
 ## Status
 

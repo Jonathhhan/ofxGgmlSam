@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added `ofxGgmlSamExternalBackend` as the first concrete adapter boundary for
+  local SAM/SAM2/SAM3 runner executables.
+
 ## 1.0.1 - 2026-05-12
 
 - Added independent SAM addon version metadata.

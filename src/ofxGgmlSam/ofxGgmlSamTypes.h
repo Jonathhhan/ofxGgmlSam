@@ -11,6 +11,22 @@ struct ofxGgmlSamPoint {
 	bool positive = true;
 };
 
+struct ofxGgmlSamExternalAdapterSettings {
+	std::string executablePath;
+	std::string workingDirectory;
+	std::vector<std::string> extraArguments;
+	std::string modelFlag = "--model";
+	std::string imageFlag = "--image";
+	std::string outputFlag = "--output";
+	std::string pointXFlag = "--point-x";
+	std::string pointYFlag = "--point-y";
+	std::string pointLabelFlag = "--point-label";
+
+	bool isConfigured() const {
+		return !executablePath.empty();
+	}
+};
+
 struct ofxGgmlSamImage {
 	int width = 0;
 	int height = 0;
@@ -29,6 +45,7 @@ struct ofxGgmlSamRequest {
 	std::string modelPath;
 	ofxGgmlSamImage image;
 	std::vector<ofxGgmlSamPoint> points;
+	ofxGgmlSamExternalAdapterSettings external;
 };
 
 struct ofxGgmlSamMask {

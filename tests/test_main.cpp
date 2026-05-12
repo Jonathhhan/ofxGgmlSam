@@ -52,6 +52,28 @@ int main() {
 	OFXGGMLSAM_EXPECT(missing.isError());
 	OFXGGMLSAM_EXPECT(!missing.errorMessage.empty());
 
+	ofxGgmlSamExternalBackend externalBackend;
+	OFXGGMLSAM_EXPECT(externalBackend.getBackendName() == "external-sam");
+	OFXGGMLSAM_EXPECT(!externalBackend.isConfigured());
+	const auto missingExternalConfig = externalBackend.segment(request);
+	OFXGGMLSAM_EXPECT(missingExternalConfig.isError());
+	OFXGGMLSAM_EXPECT(missingExternalConfig.errorMessage.find("not configured") != std::string::npos);
+
+	ofxGgmlSamExternalAdapterSettings externalSettings;
+	externalSettings.executablePath = "missing-local-sam-adapter.exe";
+	externalBackend.setSettings(externalSettings);
+	OFXGGMLSAM_EXPECT(externalBackend.isConfigured());
+	OFXGGMLSAM_EXPECT(externalBackend.getSettings().executablePath == externalSettings.executablePath);
+	const auto missingExternalExecutable = externalBackend.segment(request);
+	OFXGGMLSAM_EXPECT(missingExternalExecutable.isError());
+	OFXGGMLSAM_EXPECT(missingExternalExecutable.errorMessage.find("executable was not found") != std::string::npos);
+
+	auto externalRequest = request;
+	externalRequest.external.executablePath = "missing-request-sam-adapter.exe";
+	const auto requestExternalExecutable = ofxGgmlSamExternalBackend().segment(externalRequest);
+	OFXGGMLSAM_EXPECT(requestExternalExecutable.isError());
+	OFXGGMLSAM_EXPECT(requestExternalExecutable.errorMessage.find("executable was not found") != std::string::npos);
+
 	int callCount = 0;
 	auto backend = ofxGgmlSamInference::createBridgeBackend(
 		[&callCount](const ofxGgmlSamRequest & request) {
