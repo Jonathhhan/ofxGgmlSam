@@ -4,6 +4,8 @@
 
 - Added `ofxGgmlSamExternalBackend` as the first concrete adapter boundary for
   local SAM/SAM2/SAM3 runner executables.
+- Upgraded the point example from a skeleton to an image-loading point prompt
+  UI that can call the external adapter and preview returned masks.
 
 ## 1.0.1 - 2026-05-12
 

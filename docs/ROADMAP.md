@@ -14,14 +14,20 @@ Done:
 
 Next:
 
-Build a focused root-level `ofxGgmlSamPointExample` on top of the external
-adapter boundary:
+Done:
 
 - model path input
 - image path input
+- external SAM executable input
 - one positive point prompt
 - mask overlay preview
 - useful missing-model and missing-runtime states
+
+Next:
+
+- document one concrete local SAM/SAM2/SAM3 executable contract with setup
+  script or download notes
+- add a generated sample image path or fixture image workflow
 
 ## Rules
 

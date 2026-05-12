@@ -38,8 +38,10 @@ making the addon-side contract explicit and testable.
 
 ## Status
 
-Initial skeleton. The first useful milestone is a focused point-prompt example
-that loads a user-provided image and model path, then previews returned masks.
+The point-prompt example now loads a user-provided image, lets the user place a
+positive point, calls the external SAM adapter boundary, and previews returned
+masks as an overlay. Without a configured adapter executable it reports the
+missing-runtime state clearly.
 
 ## Dependencies
 
@@ -69,6 +71,7 @@ On macOS/Linux:
 
 - choose model path
 - choose image path
+- choose external SAM executable path
 - place one positive point
 - run segmentation
 - preview mask overlay
@@ -79,6 +82,12 @@ Dry-run the current skeleton launcher:
 ```powershell
 scripts\run-point-example.bat -DryRun
 ```
+
+At runtime, the example also reads optional defaults from:
+
+- `OFXGGML_SAM_EXECUTABLE`
+- `OFXGGML_SAM_MODEL`
+- `OFXGGML_SAM_IMAGE`
 
 ## Boundary
 
