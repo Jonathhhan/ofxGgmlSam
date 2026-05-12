@@ -50,6 +50,7 @@ Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSamVersion.h") "OFXGGML_SA
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "types header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.h") "external backend header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "external backend source"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "for \(const auto & point : request\.points\)" "external backend multi-point forwarding"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.h") "inference header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.cpp") "inference source"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.h") "utility header"
@@ -84,6 +85,7 @@ Assert-Path (Join-Path $addonRoot "tests\test_main.cpp") "test source"
 Assert-Path (Join-Path $addonRoot "tests\test_external_adapter_contract.cpp") "external adapter contract test source"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\CMakeLists.txt") "mock adapter CMakeLists"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "mock adapter source"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "std::vector<float> pointXs" "mock adapter multi-point support"
 
 $nestedExamples = Join-Path $addonRoot "examples"
 if (Test-Path -LiteralPath $nestedExamples -PathType Container) {

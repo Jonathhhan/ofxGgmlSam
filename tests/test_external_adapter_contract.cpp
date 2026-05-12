@@ -24,6 +24,7 @@ int main(int argc, char ** argv) {
 	ofxGgmlSamRequest request;
 	request.image = image;
 	request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+	request.points.push_back(ofxGgmlSamMakePoint(0.0f, 0.0f, false));
 	request.external.executablePath = argv[1];
 
 	ofxGgmlSamExternalBackend backend;
@@ -45,6 +46,10 @@ int main(int argc, char ** argv) {
 		static_cast<std::size_t>(image.width / 2);
 	if (result.masks.front().values[center] <= 0.5f) {
 		std::cerr << "external adapter mask did not include the prompted center point\n";
+		return EXIT_FAILURE;
+	}
+	if (result.masks.front().values.front() >= 0.5f) {
+		std::cerr << "external adapter mask did not apply the negative corner point\n";
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;

@@ -8,6 +8,8 @@
   model/image/point/mask protocol.
 - Upgraded the point example from a skeleton to an image-loading point prompt
   UI that can call the external adapter and preview returned masks.
+- Forwarded all request points to the external adapter as repeated point flags,
+  with contract coverage for positive and negative prompts.
 
 ## 1.0.1 - 2026-05-12
 

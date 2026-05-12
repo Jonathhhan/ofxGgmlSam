@@ -206,13 +206,13 @@ namespace {
 		appendFlagValue(command, settings.modelFlag, request.modelPath);
 		appendFlagValue(command, settings.imageFlag, imagePath.string());
 		appendFlagValue(command, settings.outputFlag, outputPath.string());
-		if (!request.points.empty()) {
-			appendFlagValue(command, settings.pointXFlag, request.points.front().x);
-			appendFlagValue(command, settings.pointYFlag, request.points.front().y);
+		for (const auto & point : request.points) {
+			appendFlagValue(command, settings.pointXFlag, point.x);
+			appendFlagValue(command, settings.pointYFlag, point.y);
 			appendFlagValue(
 				command,
 				settings.pointLabelFlag,
-				request.points.front().positive ? "positive" : "negative");
+				point.positive ? "positive" : "negative");
 		}
 		for (const auto & argument : settings.extraArguments) {
 			if (!argument.empty()) {

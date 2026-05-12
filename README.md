@@ -49,6 +49,15 @@ synthetic PGM mask. Real SAM runners should implement the same minimum CLI:
 sam-runner --model model.gguf --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive
 ```
 
+Multiple point prompts are passed by repeating the three point flags in order:
+
+```text
+sam-runner --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive --point-x 0.0 --point-y 0.0 --point-label negative
+```
+
+Coordinates are normalized image coordinates in `[0, 1]`. The adapter must
+write one grayscale PGM mask with the same width and height as the input image.
+
 ## Status
 
 The point-prompt example now loads a user-provided image, lets the user place a

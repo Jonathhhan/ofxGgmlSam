@@ -31,7 +31,11 @@ The external adapter contract is intentionally file based:
 sam-runner --model model.gguf --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive
 ```
 
+Additional points are represented by repeating `--point-x`, `--point-y`, and
+`--point-label` in the same order. Coordinates are normalized image coordinates
+in `[0, 1]`; labels are `positive` or `negative`.
+
 `ofxGgmlSamExternalBackend` writes `input.ppm`, runs the configured executable,
 then reads `mask.pgm`. The committed `tools/ofxGgmlSamMockAdapter` implements
-this minimum contract with a synthetic radial mask so examples and validation
-can test the boundary before a real SAM runtime is selected.
+this minimum contract with a synthetic mask so examples and validation can test
+positive and negative point prompts before a real SAM runtime is selected.

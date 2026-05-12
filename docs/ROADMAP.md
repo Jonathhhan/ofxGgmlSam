@@ -9,6 +9,7 @@ Done:
 - bridge inference backend for future SAM adapters
 - external SAM adapter boundary for local SAM/SAM2/SAM3 runner executables
 - mock adapter and contract test for the external executable protocol
+- repeated external point flags for multi-point positive/negative prompts
 - headless bridge API tests
 - root-level point example skeleton
 - independent addon version metadata
@@ -41,7 +42,6 @@ Next:
 ## Later
 
 - box prompts
-- multiple points
 - mask refinement
 - batch image workflows
 - optional SAM2/SAM3-specific adapters

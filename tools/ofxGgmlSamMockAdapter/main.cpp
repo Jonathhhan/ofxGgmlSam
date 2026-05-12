@@ -4,14 +4,15 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 	struct Options {
 		std::string imagePath;
 		std::string outputPath;
-		float pointX = 0.5f;
-		float pointY = 0.5f;
-		bool positive = true;
+		std::vector<float> pointXs;
+		std::vector<float> pointYs;
+		std::vector<bool> positives;
 	};
 
 	std::string readToken(std::istream & input) {
@@ -59,17 +60,22 @@ namespace {
 			return false;
 		}
 		output << "P5\n" << width << " " << height << "\n255\n";
-		const float cx = options.pointX * static_cast<float>(std::max(1, width - 1));
-		const float cy = options.pointY * static_cast<float>(std::max(1, height - 1));
 		const float radius = std::max(2.0f, std::min(width, height) * 0.25f);
 		for (int y = 0; y < height; ++y) {
 			for (int x = 0; x < width; ++x) {
-				const float dx = static_cast<float>(x) - cx;
-				const float dy = static_cast<float>(y) - cy;
-				const float distance = std::sqrt(dx * dx + dy * dy);
-				float value = std::max(0.0f, 1.0f - distance / radius);
-				if (!options.positive) {
-					value = 1.0f - value;
+				float value = 0.0f;
+				for (std::size_t i = 0; i < options.pointXs.size(); ++i) {
+					const float cx = options.pointXs[i] * static_cast<float>(std::max(1, width - 1));
+					const float cy = options.pointYs[i] * static_cast<float>(std::max(1, height - 1));
+					const float dx = static_cast<float>(x) - cx;
+					const float dy = static_cast<float>(y) - cy;
+					const float distance = std::sqrt(dx * dx + dy * dy);
+					const float influence = std::max(0.0f, 1.0f - distance / radius);
+					if (options.positives[i]) {
+						value = std::max(value, influence);
+					} else {
+						value *= 1.0f - influence;
+					}
 				}
 				output.put(static_cast<char>(std::clamp(value, 0.0f, 1.0f) * 255.0f));
 			}
@@ -92,19 +98,32 @@ namespace {
 			} else if (key == "--output") {
 				options.outputPath = next();
 			} else if (key == "--point-x") {
-				options.pointX = std::stof(next());
+				options.pointXs.push_back(std::stof(next()));
 			} else if (key == "--point-y") {
-				options.pointY = std::stof(next());
+				options.pointYs.push_back(std::stof(next()));
 			} else if (key == "--point-label") {
-				options.positive = next() != "negative";
+				options.positives.push_back(next() != "negative");
 			} else if (key == "--model") {
 				(void)next();
 			} else {
 				(void)key;
 			}
 		}
-		options.pointX = std::clamp(options.pointX, 0.0f, 1.0f);
-		options.pointY = std::clamp(options.pointY, 0.0f, 1.0f);
+		const auto pointCount = std::min(options.pointXs.size(), options.pointYs.size());
+		options.pointXs.resize(pointCount);
+		options.pointYs.resize(pointCount);
+		options.positives.resize(pointCount, true);
+		for (auto & pointX : options.pointXs) {
+			pointX = std::clamp(pointX, 0.0f, 1.0f);
+		}
+		for (auto & pointY : options.pointYs) {
+			pointY = std::clamp(pointY, 0.0f, 1.0f);
+		}
+		if (options.pointXs.empty()) {
+			options.pointXs.push_back(0.5f);
+			options.pointYs.push_back(0.5f);
+			options.positives.push_back(true);
+		}
 		return options;
 	}
 }
