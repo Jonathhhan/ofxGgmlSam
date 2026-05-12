@@ -4,6 +4,8 @@
 
 - Added `ofxGgmlSamExternalBackend` as the first concrete adapter boundary for
   local SAM/SAM2/SAM3 runner executables.
+- Added a mock external adapter and contract test for the file-based
+  model/image/point/mask protocol.
 - Upgraded the point example from a skeleton to an image-loading point prompt
   UI that can call the external adapter and preview returned masks.
 

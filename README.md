@@ -36,6 +36,19 @@ executable with model/image/point/output flags, and reads a returned PGM mask
 into `ofxGgmlSamResult`. That keeps SAM, SAM2, and SAM3 runners opt-in while
 making the addon-side contract explicit and testable.
 
+Verify that contract without a real model by building the mock adapter:
+
+```powershell
+scripts\test-external-adapter-contract.bat
+```
+
+The mock executable accepts the same flags as the external backend and writes a
+synthetic PGM mask. Real SAM runners should implement the same minimum CLI:
+
+```text
+sam-runner --model model.gguf --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive
+```
+
 ## Status
 
 The point-prompt example now loads a user-provided image, lets the user place a

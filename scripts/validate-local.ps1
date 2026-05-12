@@ -73,11 +73,17 @@ Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "maskTexture" "poin
 Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
 Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"
+Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.ps1") "external adapter contract script"
+Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.bat") "external adapter contract Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.sh") "external adapter contract shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-addon.ps1") "test script"
 Assert-Path (Join-Path $scriptRoot "test-addon.bat") "test Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "test-addon.sh") "test shell wrapper"
 Assert-Path (Join-Path $addonRoot "tests\CMakeLists.txt") "test CMakeLists"
 Assert-Path (Join-Path $addonRoot "tests\test_main.cpp") "test source"
+Assert-Path (Join-Path $addonRoot "tests\test_external_adapter_contract.cpp") "external adapter contract test source"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\CMakeLists.txt") "mock adapter CMakeLists"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "mock adapter source"
 
 $nestedExamples = Join-Path $addonRoot "examples"
 if (Test-Path -LiteralPath $nestedExamples -PathType Container) {
@@ -117,6 +123,17 @@ Write-Step "Running headless tests"
 & (Join-Path $scriptRoot "test-addon.ps1")
 if ($LASTEXITCODE -ne 0) {
 	throw "Headless tests failed with exit code $LASTEXITCODE"
+}
+
+Write-Step "Checking external adapter contract"
+$adapterDryRun = & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -DryRun 2>&1 6>&1 | Out-String
+if (!$adapterDryRun.Contains("External SAM adapter contract plan") -or
+	!$adapterDryRun.Contains("Dry run complete; no files were changed")) {
+	throw "External adapter contract dry-run output was unexpected:`n$adapterDryRun"
+}
+& (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean
+if ($LASTEXITCODE -ne 0) {
+	throw "External adapter contract failed with exit code $LASTEXITCODE"
 }
 
 Write-Step "ofxGgmlSam local validation passed"

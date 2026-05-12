@@ -8,6 +8,7 @@ Done:
 - normalized point and request validation helpers
 - bridge inference backend for future SAM adapters
 - external SAM adapter boundary for local SAM/SAM2/SAM3 runner executables
+- mock adapter and contract test for the external executable protocol
 - headless bridge API tests
 - root-level point example skeleton
 - independent addon version metadata
@@ -25,9 +26,8 @@ Done:
 
 Next:
 
-- document one concrete local SAM/SAM2/SAM3 executable contract with setup
-  script or download notes
 - add a generated sample image path or fixture image workflow
+- choose the first real SAM/SAM2/SAM3 runner and document setup/download notes
 
 ## Rules
 

@@ -18,3 +18,15 @@ target_include_directories(ofxGgmlSam_tests PRIVATE
 
 enable_testing()
 add_test(NAME ofxGgmlSam_tests COMMAND ofxGgmlSam_tests)
+
+option(OFXGGMLSAM_BUILD_EXTERNAL_ADAPTER_CONTRACT "Build the optional external adapter contract test." OFF)
+if (OFXGGMLSAM_BUILD_EXTERNAL_ADAPTER_CONTRACT)
+	add_executable(sam_adapter_contract
+		test_external_adapter_contract.cpp
+		../src/ofxGgmlSam/ofxGgmlSamExternalBackend.cpp
+		../src/ofxGgmlSam/ofxGgmlSamInference.cpp
+		../src/ofxGgmlSam/ofxGgmlSamUtils.cpp)
+	target_include_directories(sam_adapter_contract PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/../src
+		${OFX_GGML_CORE_ROOT}/src)
+endif()

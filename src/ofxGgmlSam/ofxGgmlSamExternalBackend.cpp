@@ -199,6 +199,9 @@ namespace {
 			command << "cd " << quoteShellArgument(settings.workingDirectory) << " && ";
 #endif
 		}
+#if defined(_WIN32)
+		command << "call ";
+#endif
 		command << quoteShellArgument(settings.executablePath);
 		appendFlagValue(command, settings.modelFlag, request.modelPath);
 		appendFlagValue(command, settings.imageFlag, imagePath.string());
