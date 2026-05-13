@@ -1,0 +1,25 @@
+{
+  "name": "ofxGgmlSam",
+  "lane": "segmentation",
+  "coreBaseline": "v1.0.1",
+  "requires": [
+    "ofxGgmlCore"
+  ],
+  "owns": [
+    "SAM",
+    "SAM2",
+    "SAM3",
+    "segmentation",
+    "point prompts"
+  ],
+  "platforms": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "backends": [
+    "cpu",
+    "cuda",
+    "metal"
+  ]
+}
