@@ -74,6 +74,10 @@ Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "maskTexture" "poin
 Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
 Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"
+Assert-Path (Join-Path $scriptRoot "doctor-sam.ps1") "SAM doctor script"
+Assert-Path (Join-Path $scriptRoot "doctor-sam.bat") "SAM doctor Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "doctor-sam.sh") "SAM doctor shell wrapper"
+Assert-Path (Join-Path $scriptRoot "test-doctor-sam.ps1") "SAM doctor smoke test"
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.ps1") "external adapter contract script"
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.bat") "external adapter contract Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.sh") "external adapter contract shell wrapper"
@@ -133,6 +137,13 @@ if (!$adapterDryRun.Contains("External SAM adapter contract plan") -or
 	!$adapterDryRun.Contains("Dry run complete; no files were changed")) {
 	throw "External adapter contract dry-run output was unexpected:`n$adapterDryRun"
 }
+
+Write-Step "Checking SAM doctor"
+& (Join-Path $scriptRoot "test-doctor-sam.ps1")
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM doctor smoke test failed with exit code $LASTEXITCODE"
+}
+
 & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean
 if ($LASTEXITCODE -ne 0) {
 	throw "External adapter contract failed with exit code $LASTEXITCODE"

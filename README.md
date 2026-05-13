@@ -76,6 +76,7 @@ missing-runtime state clearly.
 From the addon root:
 
 ```powershell
+scripts\doctor-sam.bat
 scripts\test-addon.bat
 scripts\validate-local.bat
 ```
@@ -83,6 +84,7 @@ scripts\validate-local.bat
 On macOS/Linux:
 
 ```sh
+./scripts/doctor-sam.sh
 ./scripts/test-addon.sh
 ./scripts/validate-local.sh
 ```
