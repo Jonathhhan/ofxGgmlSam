@@ -1,29 +1,32 @@
-# AGENTS.md
+# Codex Repository Instructions
 
-This repository is `ofxGgmlSam`, the segmentation companion addon for the ofxGgml family.
+This repository is part of the ofxGgml openFrameworks addon ecosystem.
 
-Codex should treat `ofxGgmlCore` as the backend-neutral foundation. This repo owns SAM/SAM2/SAM3 segmentation workflows, point prompts, segmentation examples, and segmentation-specific runtime integration.
+## Addon Scope
 
-## Addon contract
+- Addon: ofxGgmlSam
+- Lane: segmentation
+- Role: SAM/SAM2/SAM3 segmentation requests, masks, prompts, and examples
 
-Do:
+## Working Rules
 
-- keep segmentation-specific workflows in this addon
-- depend on shared primitives from `ofxGgmlCore`
-- preserve openFrameworks addon layout and `addon_config.mk`
-- keep examples projectGenerator-friendly
-- document model/runtime requirements clearly
+- Read the existing code and docs before changing behavior.
+- Keep edits scoped to this addon's lane and preserve the companion-addon split.
+- Start with an ecosystem plan when a task asks for cross-repo improvement or planning.
+- Keep ofxGgmlCore as the shared base; do not add reverse dependencies from Core to companion addons.
+- Do not commit generated project files, binaries, model weights, downloaded runtimes, sample media dumps, memory indexes, or caches.
+- Prefer focused tests and local validation over broad refactors.
+- Preserve openFrameworks-style public names and document intentional breaking changes.
 
-Do not:
+## Validation
 
-- move backend-neutral Core primitives into this repo
-- commit models, generated masks/images, binaries, or caches
-- hardcode local absolute paths
+Validation before handoff: scripts\validate-local.ps1.
 
-## Codex workflow
+For ecosystem planning work, run scripts\plan-ecosystem.ps1 from ofxGgmlCore
+before proposing addon-code changes.
 
-1. Inspect existing files first.
-2. Keep changes small and focused.
-3. Preserve addon boundaries.
-4. Update docs/examples/scripts with code changes.
-5. Summarize validation honestly.
+## Ecosystem Notes
+
+Model-specific UX belongs in companion addons. Shared code should move down into
+ofxGgmlCore only after it is stable, domain-neutral, dependency-light, and
+covered by focused tests.
