@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 struct ofxGgmlSamPoint {
@@ -43,9 +44,12 @@ struct ofxGgmlSamImage {
 
 struct ofxGgmlSamRequest {
 	std::string modelPath;
+	std::string imagePath;
 	ofxGgmlSamImage image;
 	std::vector<ofxGgmlSamPoint> points;
 	ofxGgmlSamExternalAdapterSettings external;
+	int threads = -1;
+	bool returnMultipleMasks = true;
 };
 
 struct ofxGgmlSamMask {
@@ -61,8 +65,12 @@ struct ofxGgmlSamMask {
 
 struct ofxGgmlSamResult {
 	bool success = false;
+	float elapsedMs = 0.0f;
 	std::string errorMessage;
+	std::string backendName;
+	std::string imagePath;
 	std::vector<ofxGgmlSamMask> masks;
+	std::vector<std::pair<std::string, std::string>> metadata;
 
 	bool isOk() const {
 		return success;

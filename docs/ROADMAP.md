@@ -20,15 +20,16 @@ Done:
 
 - model path input
 - image path input
-- external SAM executable input
+- in-process backend switch for `sam3.cpp` and `sam.cpp`
 - one positive point prompt
 - mask overlay preview
-- useful missing-model and missing-runtime states
+- useful missing-model, missing-backend, and disabled-adapter states
+- local SAM3 model auto-detection from example `bin\data\models`
 
 Next:
 
-- add a generated sample image path or fixture image workflow
-- choose the first real SAM/SAM2/SAM3 runner and document setup/download notes
+- add a redistributable fixture image workflow
+- expand runtime verification from compile/link checks to real inference output checks
 
 ## Rules
 
@@ -44,5 +45,5 @@ Next:
 - box prompts
 - mask refinement
 - batch image workflows
-- optional SAM2/SAM3-specific adapters
+- broader SAM2/SAM3-specific adapter coverage
 - sample image generation or redistributable test image

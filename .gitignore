@@ -1,13 +1,24 @@
 .vs/
+.local/
 build/
 *.obj
 *.pdb
 *.ilk
 *.log
 
-libs/*/.source/
-libs/*/build/
-libs/*/build*/
+libs/sam.cpp/source/
+libs/sam.cpp/include/*
+!libs/sam.cpp/include/.gitkeep
+libs/sam.cpp/src/*
+!libs/sam.cpp/src/.gitkeep
+libs/sam.cpp/lib/
+
+libs/sam3.cpp/source/
+libs/sam3.cpp/include/*
+!libs/sam3.cpp/include/.gitkeep
+libs/sam3.cpp/src/*
+!libs/sam3.cpp/src/.gitkeep
+libs/sam3.cpp/lib/
 
 ofxGgml*Example/bin/
 ofxGgml*Example/obj/

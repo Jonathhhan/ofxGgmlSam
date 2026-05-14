@@ -18,6 +18,8 @@ int main() {
 	OFXGGMLSAM_EXPECT(OFXGGML_SAM_VERSION_PATCH == 1);
 	OFXGGMLSAM_EXPECT(std::string(OFXGGML_SAM_VERSION_STRING) == "1.0.1");
 	OFXGGMLSAM_EXPECT(std::string(ofxGgmlSamGetVersionString()) == "1.0.1");
+	OFXGGMLSAM_EXPECT(OFXGGML_HAS_SAMCPP == 0 || OFXGGML_HAS_SAMCPP == 1);
+	OFXGGMLSAM_EXPECT(OFXGGML_HAS_SAM3 == 0 || OFXGGML_HAS_SAM3 == 1);
 
 	ofxGgmlSamImage image;
 	OFXGGMLSAM_EXPECT(!image.isAllocated());
@@ -97,6 +99,7 @@ int main() {
 	const auto result = inference.segment(request);
 	OFXGGMLSAM_EXPECT(result);
 	OFXGGMLSAM_EXPECT(result.isOk());
+	OFXGGMLSAM_EXPECT(result.backendName == "FakeSam");
 	OFXGGMLSAM_EXPECT(result.masks.size() == 1);
 	OFXGGMLSAM_EXPECT(result.masks.front().isAllocated());
 	OFXGGMLSAM_EXPECT(callCount == 1);
@@ -108,6 +111,22 @@ int main() {
 	inference.setBackend(nullptr);
 	OFXGGMLSAM_EXPECT(!inference.isConfigured());
 	OFXGGMLSAM_EXPECT(inference.segment(request).isError());
+
+	ofxGgmlSamCppAdapters::attachBackend(
+		inference,
+		"missing-ofxGgmlSam-test-sam-model.bin");
+	const auto missingSamCpp = inference.segment(request);
+	OFXGGMLSAM_EXPECT(missingSamCpp.isError());
+	OFXGGMLSAM_EXPECT(missingSamCpp.backendName == "sam.cpp");
+	OFXGGMLSAM_EXPECT(!missingSamCpp.errorMessage.empty());
+
+	ofxGgmlSam3Adapters::attachBackend(
+		inference,
+		"missing-ofxGgmlSam-test-sam3-model.gguf");
+	const auto missingSam3 = inference.segment(request);
+	OFXGGMLSAM_EXPECT(missingSam3.isError());
+	OFXGGMLSAM_EXPECT(missingSam3.backendName == "sam3.cpp");
+	OFXGGMLSAM_EXPECT(!missingSam3.errorMessage.empty());
 
 	ofxGgmlSamRequest invalidRequest;
 	invalidRequest.image = image;

@@ -1,6 +1,7 @@
 param(
 	[switch]$Build,
 	[switch]$DryRun,
+	[switch]$RepairProject,
 	[string]$Configuration = "Release",
 	[string]$Platform = "x64"
 )
@@ -35,6 +36,25 @@ function Get-MsBuild {
 	return ""
 }
 
+function Test-GeneratedProjectWiring {
+	param([string]$ProjectPath)
+
+	$content = Get-Content -LiteralPath $ProjectPath -Raw
+	$missing = @()
+	foreach ($expected in @(
+		"..\src",
+		"..\..\ofxGgmlCore\src",
+		"..\..\ofxImGui\src",
+		"..\libs\sam3.cpp\include",
+		"OFXGGML_ENABLE_SAM3_ADAPTER"
+	)) {
+		if ($content -notlike "*$expected*") {
+			$missing += $expected
+		}
+	}
+	return $missing
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Split-Path -Parent $scriptRoot
 $exampleName = "ofxGgmlSamPointExample"
@@ -53,6 +73,16 @@ if ($Build) {
 	}
 	if (!(Test-Path -LiteralPath $projectPath -PathType Leaf)) {
 		throw "Visual Studio project was not found: $projectPath. Generate it with openFrameworks projectGenerator using addons ofxGgmlCore and ofxGgmlSam."
+	}
+	$missingWiring = Test-GeneratedProjectWiring -ProjectPath $projectPath
+	if ($missingWiring.Count -gt 0) {
+		if ($RepairProject) {
+			& (Join-Path $scriptRoot "repair-point-example-vsproj.ps1") -ProjectPath $projectPath
+			$missingWiring = Test-GeneratedProjectWiring -ProjectPath $projectPath
+		}
+		if ($missingWiring.Count -gt 0) {
+			throw "Visual Studio project is missing addon include wiring for: $($missingWiring -join ', '). Regenerate it with openFrameworks projectGenerator using addons ofxGgmlCore, ofxGgmlSam, and ofxImGui, or run scripts\repair-point-example-vsproj.bat."
+		}
 	}
 	$msbuild = Get-MsBuild
 	if ([string]::IsNullOrWhiteSpace($msbuild)) {
