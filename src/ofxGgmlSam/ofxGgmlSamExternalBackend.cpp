@@ -247,6 +247,7 @@ std::string ofxGgmlSamExternalBackend::getBackendName() const {
 
 ofxGgmlSamResult ofxGgmlSamExternalBackend::segment(
 	const ofxGgmlSamRequest & request) const {
+	const auto started = std::chrono::steady_clock::now();
 	const auto mergedSettings = mergeSettings(settings, request.external);
 	if (!mergedSettings.isConfigured()) {
 		return ofxGgmlSamMakeError("external SAM executable is not configured");
@@ -281,6 +282,14 @@ ofxGgmlSamResult ofxGgmlSamExternalBackend::segment(
 
 	ofxGgmlSamResult result;
 	result.success = true;
+	result.backendName = getBackendName();
+	result.imagePath = request.imagePath;
+	result.elapsedMs = std::chrono::duration<float, std::milli>(
+		std::chrono::steady_clock::now() - started).count();
+	result.metadata.push_back({ "backend", getBackendName() });
+	if (!request.modelPath.empty()) {
+		result.metadata.push_back({ "modelPath", request.modelPath });
+	}
 	result.masks.push_back(std::move(mask));
 	return result;
 }

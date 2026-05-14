@@ -1,6 +1,7 @@
 #include "ofxGgmlSamInference.h"
 #include "ofxGgmlSamUtils.h"
 
+#include <chrono>
 #include <utility>
 
 ofxGgmlSamBridgeBackend::ofxGgmlSamBridgeBackend(
@@ -25,12 +26,28 @@ std::string ofxGgmlSamBridgeBackend::getBackendName() const {
 
 ofxGgmlSamResult ofxGgmlSamBridgeBackend::segment(
 	const ofxGgmlSamRequest & request) const {
+	ofxGgmlSamResult result;
+	result.backendName = getBackendName();
+	result.imagePath = request.imagePath;
 	if (segmentFunction) {
-		return segmentFunction(request);
+		const auto started = std::chrono::steady_clock::now();
+		result = segmentFunction(request);
+		if (result.backendName.empty()) {
+			result.backendName = getBackendName();
+		}
+		if (result.imagePath.empty()) {
+			result.imagePath = request.imagePath;
+		}
+		if (result.elapsedMs <= 0.0f) {
+			result.elapsedMs = std::chrono::duration<float, std::milli>(
+				std::chrono::steady_clock::now() - started).count();
+		}
+		return result;
 	}
 
-	return ofxGgmlSamMakeError(
-		"ofxGgmlSam backend is not configured. Install or assign a SAM adapter first.");
+	result.errorMessage =
+		"ofxGgmlSam backend is not configured. Install or assign a SAM adapter first.";
+	return result;
 }
 
 ofxGgmlSamInference::ofxGgmlSamInference()

@@ -1,0 +1,123 @@
+diff --git a/src/ggml-cuda/ggml-cuda.cu b/src/ggml-cuda/ggml-cuda.cu
+index 8d21b22..e790b32 100644
+--- a/src/ggml-cuda/ggml-cuda.cu
++++ b/src/ggml-cuda/ggml-cuda.cu
+@@ -2625,6 +2625,105 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor *
+         nb1, nb2, nb3, stream);
+ }
+
++static __global__ void win_part_f32(
++        const float * src, float * dst,
++        int64_t src_ne1, int64_t src_ne2,
++        int64_t src_nb0, int64_t src_nb1, int64_t src_nb2, int64_t src_nb3,
++        int64_t dst_ne0, int64_t dst_ne1, int64_t dst_ne2, int64_t dst_ne3,
++        int64_t dst_nb0, int64_t dst_nb1, int64_t dst_nb2, int64_t dst_nb3,
++        int32_t npx, int32_t w, int64_t total) {
++    const int64_t idx = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
++    if (idx >= total) {
++        return;
++    }
++
++    const int64_t i0 = idx % dst_ne0;
++    const int64_t i1 = (idx / dst_ne0) % dst_ne1;
++    const int64_t i2 = (idx / (dst_ne0 * dst_ne1)) % dst_ne2;
++    const int64_t i3 = idx / (dst_ne0 * dst_ne1 * dst_ne2);
++    const int64_t px = i3 % npx;
++    const int64_t py = i3 / npx;
++    const int64_t sx = px * w + i1;
++    const int64_t sy = py * w + i2;
++
++    char * dst_bytes = (char *) dst;
++    float * out = (float *) (dst_bytes + i0 * dst_nb0 + i1 * dst_nb1 + i2 * dst_nb2 + i3 * dst_nb3);
++    if (sx >= src_ne1 || sy >= src_ne2) {
++        *out = 0.0f;
++        return;
++    }
++
++    const char * src_bytes = (const char *) src;
++    const float * in = (const float *) (src_bytes + i0 * src_nb0 + sx * src_nb1 + sy * src_nb2 + 0 * src_nb3);
++    *out = *in;
++}
++
++static __global__ void win_unpart_f32(
++        const float * src, float * dst,
++        int64_t src_nb0, int64_t src_nb1, int64_t src_nb2, int64_t src_nb3,
++        int64_t dst_ne0, int64_t dst_ne1, int64_t dst_ne2, int64_t dst_ne3,
++        int64_t dst_nb0, int64_t dst_nb1, int64_t dst_nb2, int64_t dst_nb3,
++        int32_t npx, int32_t w, int64_t total) {
++    const int64_t idx = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
++    if (idx >= total) {
++        return;
++    }
++
++    const int64_t i0 = idx % dst_ne0;
++    const int64_t i1 = (idx / dst_ne0) % dst_ne1;
++    const int64_t i2 = (idx / (dst_ne0 * dst_ne1)) % dst_ne2;
++    const int64_t i3 = idx / (dst_ne0 * dst_ne1 * dst_ne2);
++    const int64_t ip1 = i1 / w;
++    const int64_t ip2 = i2 / w;
++    const int64_t sx1 = i1 % w;
++    const int64_t sx2 = i2 % w;
++    const int64_t sx3 = ip2 * npx + ip1 + i3 * npx;
++
++    const char * src_bytes = (const char *) src;
++    const float * in = (const float *) (src_bytes + i0 * src_nb0 + sx1 * src_nb1 + sx2 * src_nb2 + sx3 * src_nb3);
++    char * dst_bytes = (char *) dst;
++    float * out = (float *) (dst_bytes + i0 * dst_nb0 + i1 * dst_nb1 + i2 * dst_nb2 + i3 * dst_nb3);
++    *out = *in;
++}
++
++static void ggml_cuda_op_win_part(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
++    const ggml_tensor * src0 = dst->src[0];
++    GGML_ASSERT(src0->type == GGML_TYPE_F32);
++    GGML_ASSERT(dst->type == GGML_TYPE_F32);
++
++    const int32_t npx = ((const int32_t *) dst->op_params)[0];
++    const int32_t w = ((const int32_t *) dst->op_params)[2];
++    const int64_t total = ggml_nelements(dst);
++    const int block_size = 256;
++    const int num_blocks = (int) ((total + block_size - 1) / block_size);
++    win_part_f32<<<num_blocks, block_size, 0, ctx.stream()>>>(
++        (const float *) src0->data, (float *) dst->data,
++        src0->ne[1], src0->ne[2],
++        src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3],
++        dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3],
++        dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3],
++        npx, w, total);
++}
++
++static void ggml_cuda_op_win_unpart(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
++    const ggml_tensor * src0 = dst->src[0];
++    GGML_ASSERT(src0->type == GGML_TYPE_F32);
++    GGML_ASSERT(dst->type == GGML_TYPE_F32);
++
++    const int32_t w = ((const int32_t *) dst->op_params)[0];
++    const int32_t px = (w - dst->ne[1] % w) % w;
++    const int32_t npx = (px + dst->ne[1]) / w;
++    const int64_t total = ggml_nelements(dst);
++    const int block_size = 256;
++    const int num_blocks = (int) ((total + block_size - 1) / block_size);
++    win_unpart_f32<<<num_blocks, block_size, 0, ctx.stream()>>>(
++        (const float *) src0->data, (float *) dst->data,
++        src0->nb[0], src0->nb[1], src0->nb[2], src0->nb[3],
++        dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3],
++        dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3],
++        npx, w, total);
++}
++
+ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
+     switch (dst->op) {
+         case GGML_OP_ARGMAX:
+@@ -2952,6 +3051,12 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
+         case GGML_OP_FILL:
+             ggml_cuda_op_fill(ctx, dst);
+             break;
++        case GGML_OP_WIN_PART:
++            ggml_cuda_op_win_part(ctx, dst);
++            break;
++        case GGML_OP_WIN_UNPART:
++            ggml_cuda_op_win_unpart(ctx, dst);
++            break;
+         case GGML_OP_CPY:
+         case GGML_OP_CONT:
+         case GGML_OP_DUP:

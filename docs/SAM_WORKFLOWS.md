@@ -42,7 +42,7 @@ Before changing segmentation behavior, write down:
 Workflow:
 Prompt type:
 Input image:
-Model or external adapter:
+Model or backend:
 Generated local artifacts:
 Mask output:
 Out of scope:
@@ -50,8 +50,32 @@ Validation:
 ```
 
 Runtime changes should name whether the path changes point prompts, box
-prompts, mask refinement, external adapter execution, image preprocessing, mask
+prompts, mask refinement, backend execution, image preprocessing, mask
 postprocessing, or example UI.
+
+## Backend modes
+
+The point example is focused on the in-process `sam3.cpp` and `sam.cpp` lanes.
+The doctor script also recognizes the external adapter contract mode:
+
+| Backend | Setup expectation |
+| --- | --- |
+| `external-sam` | Set `OFXGGML_SAM_EXECUTABLE` for doctor and external contract validation. This is not the point example's default UI path. |
+| `sam.cpp` | Run `scripts\install-sam-cpp.bat` to stage the pinned source. The point example recognizes this lane and filters for `.bin` SAM models, but the in-process adapter is not auto-enabled because the pinned runtime still needs a Core ggml allocator port before it can be compiled safely beside the shared ggml lane. |
+| `sam3.cpp` | Run `scripts\install-sam3-cpp.bat`, then `scripts\build-sam3-cpp.bat -CpuOnly` or `-Cuda`, define `OFXGGML_ENABLE_SAM3_ADAPTER`, and link the local runtime from `libs\sam3.cpp\include`, `libs\sam3.cpp\src`, and `libs\sam3.cpp\lib`. CUDA builds prefer the sibling Core ggml checkout and apply the local `ggml-cuda` window-op compatibility patch when needed. |
+
+Set `OFXGGML_SAM_BACKEND` to one of those names to preselect the example or
+doctor backend. The point example also searches `bin\data\models` for a model
+when `OFXGGML_SAM_MODEL` is not set.
+
+The `sam3.cpp` in-process adapter caches encoded image state by image
+fingerprint inside the loaded runtime. The first run on a changed image performs
+`sam3_encode_image`; repeated point prompts on the same image should only call
+`sam3_segment_pvs`.
+
+Model auto-detection is backend-aware: `sam3.cpp` selects `.ggml` models, while
+`sam.cpp` selects `.bin` models. A SAM3 `.ggml` model is intentionally not sent
+to the `sam.cpp` lane.
 
 ## Validation ladder
 
@@ -61,7 +85,9 @@ Use the smallest command that proves the changed layer:
 | --- | --- |
 | Docs or planning only | `scripts\validate-local.bat` |
 | Local setup diagnosis | `scripts\doctor-sam.bat` |
+| Backend-specific diagnosis | `scripts\doctor-sam.bat -Backend sam3.cpp` |
 | Point example launch path | `scripts\run-point-example.bat -DryRun` |
+| Generated VS addon wiring | `scripts\repair-point-example-vsproj.bat` |
 | External adapter contract | `scripts\test-external-adapter-contract.bat -Clean` |
 | Request/result/helper changes | `scripts\test-addon.bat` |
 
