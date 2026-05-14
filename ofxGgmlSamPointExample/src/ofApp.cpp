@@ -5,6 +5,8 @@
 #include <cstdlib>
 
 namespace {
+	constexpr const char * LogModule = "ofxGgmlSamPointExample";
+
 	std::string getEnvString(const std::string & name) {
 		const auto value = std::getenv(name.c_str());
 		return value ? std::string(value) : "";
@@ -132,21 +134,21 @@ void ofApp::loadImage() {
 	lastResult = {};
 	imageLoaded = false;
 	if (imagePath.empty()) {
-		status = "image path is empty";
+		setStatus("image path is empty", true);
 		return;
 	}
 	if (!image.load(imagePath)) {
-		status = "could not load image: " + imagePath;
+		setStatus("could not load image: " + imagePath, true);
 		return;
 	}
 	imageLoaded = true;
 	updateRequestImage();
-	status = "image loaded";
+	setStatus("image loaded");
 }
 
 void ofApp::runSegmentation() {
 	if (!imageLoaded) {
-		status = "load an image first";
+		setStatus("load an image first", true);
 		return;
 	}
 	updateRequestImage();
@@ -154,12 +156,12 @@ void ofApp::runSegmentation() {
 	request.external.executablePath = executablePath;
 	lastResult = inference.segment(request);
 	if (!lastResult) {
-		status = lastResult.errorMessage;
+		setStatus(lastResult.errorMessage, true);
 		maskTexture.clear();
 		return;
 	}
 	updateMaskTexture();
-	status = "segmentation complete";
+	setStatus("segmentation complete");
 }
 
 void ofApp::updateRequestImage() {
@@ -185,6 +187,15 @@ void ofApp::updateMaskTexture() {
 		}
 	}
 	maskTexture.loadData(pixels);
+}
+
+void ofApp::setStatus(const std::string & message, bool warning) {
+	status = message;
+	if (warning) {
+		ofLogWarning(LogModule) << message;
+	} else {
+		ofLogNotice(LogModule) << message;
+	}
 }
 
 ofRectangle ofApp::getImageRect() const {

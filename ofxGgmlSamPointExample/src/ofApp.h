@@ -15,6 +15,7 @@ private:
 	void runSegmentation();
 	void updateRequestImage();
 	void updateMaskTexture();
+	void setStatus(const std::string & message, bool warning = false);
 	ofRectangle getImageRect() const;
 
 	ofxImGui::Gui gui;
