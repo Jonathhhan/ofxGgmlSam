@@ -39,3 +39,7 @@ in `[0, 1]`; labels are `positive` or `negative`.
 then reads `mask.pgm`. The committed `tools/ofxGgmlSamMockAdapter` implements
 this minimum contract with a synthetic mask so examples and validation can test
 positive and negative point prompts before a real SAM runtime is selected.
+
+See `docs/SAM_WORKFLOWS.md` before expanding this lane. It defines the planning
+handoff, generated-mask boundaries, prompt-type split, external adapter
+expectations, and validation ladder for SAM, SAM2, and SAM3 segmentation work.

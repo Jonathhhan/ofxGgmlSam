@@ -30,6 +30,9 @@ The first public API is a small bridge backend:
 Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
 expanding core `ofxGgmlCore`.
 
+For segmentation-lane planning, prompt boundaries, and adapter artifact rules,
+see [docs/SAM_WORKFLOWS.md](docs/SAM_WORKFLOWS.md).
+
 `ofxGgmlSamExternalBackend` is the first concrete adapter boundary. It writes
 the request image to a temporary PPM file, calls a user-provided local SAM
 executable with model/image/point/output flags, and reads a returned PGM mask
