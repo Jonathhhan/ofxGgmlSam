@@ -77,6 +77,12 @@ Model auto-detection is backend-aware: `sam3.cpp` selects `.ggml` models, while
 `sam.cpp` selects `.bin` models. A SAM3 `.ggml` model is intentionally not sent
 to the `sam.cpp` lane.
 
+The lane-owned SAM3 runtime smoke is the first model-backed check that does not
+depend on the openFrameworks example UI. It builds a small console tool, creates
+a synthetic RGB image, loads a local SAM3/SAM2/EdgeTAM `.ggml` model, runs
+`sam3_encode_image`, then runs one `sam3_segment_pvs` prompt. It reports timing
+and mask-count metadata only; masks and generated media stay local.
+
 ## Validation ladder
 
 Use the smallest command that proves the changed layer:
@@ -86,6 +92,9 @@ Use the smallest command that proves the changed layer:
 | Docs or planning only | `scripts\validate-local.bat` |
 | Local setup diagnosis | `scripts\doctor-sam.bat` |
 | Backend-specific diagnosis | `scripts\doctor-sam.bat -Backend sam3.cpp` |
+| SAM3 runtime smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun` |
+| SAM3 CPU runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly` |
+| SAM3 CUDA runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly` |
 | Point example launch path | `scripts\run-point-example.bat -DryRun` |
 | Generated VS addon wiring | `scripts\repair-point-example-vsproj.bat` |
 | External adapter contract | `scripts\test-external-adapter-contract.bat -Clean` |

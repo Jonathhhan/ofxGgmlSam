@@ -118,6 +118,10 @@ Assert-Path (Join-Path $scriptRoot "doctor-sam.ps1") "SAM doctor script"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.bat") "SAM doctor Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.sh") "SAM doctor shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-doctor-sam.ps1") "SAM doctor smoke test"
+Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "SAM3 runtime smoke script"
+Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.bat") "SAM3 runtime smoke Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.sh") "SAM3 runtime smoke shell wrapper"
+Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1") "SAM3 runtime smoke contract test"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.bat") "sam.cpp install Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.sh") "sam.cpp install shell wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam3-cpp.ps1") "sam3.cpp install script"
@@ -136,6 +140,8 @@ Assert-Path (Join-Path $addonRoot "tests\test_external_adapter_contract.cpp") "e
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\CMakeLists.txt") "mock adapter CMakeLists"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "mock adapter source"
 Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "std::vector<float> pointXs" "mock adapter multi-point support"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\CMakeLists.txt") "SAM3 runtime smoke CMakeLists"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\main.cpp") "SAM3 runtime smoke source"
 
 $nestedExamples = Join-Path $addonRoot "examples"
 if (Test-Path -LiteralPath $nestedExamples -PathType Container) {
@@ -193,6 +199,12 @@ Write-Step "Checking SAM doctor"
 & (Join-Path $scriptRoot "test-doctor-sam.ps1")
 if ($LASTEXITCODE -ne 0) {
 	throw "SAM doctor smoke test failed with exit code $LASTEXITCODE"
+}
+
+Write-Step "Checking SAM3 runtime smoke contract"
+& (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1")
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM3 runtime smoke contract failed with exit code $LASTEXITCODE"
 }
 
 & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean

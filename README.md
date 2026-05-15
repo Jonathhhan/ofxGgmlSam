@@ -76,6 +76,24 @@ The `sam3.cpp` adapter caches encoded image state per loaded runtime. Changing
 only point prompts reuses the cached image embedding and runs the prompt decoder
 directly; changing the image invalidates the cache and triggers a fresh encode.
 
+Verify the in-process SAM3 lane with the headless runtime smoke. The dry-run is
+model-free and reports the selected executable, backend, and model discovery
+state:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -DryRun
+```
+
+When `OFXGGML_SAM_MODEL` is set, or a `.ggml` SAM3/SAM2/EdgeTAM model exists in
+`ofxGgmlSamPointExample\bin\data\models`, the smoke builds a small console tool,
+loads the model, encodes a synthetic RGB image, runs one point prompt, and
+reports timings without writing masks or generated media:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly
+scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly
+```
+
 Verify that contract without a real model by building the mock adapter:
 
 ```powershell
@@ -118,6 +136,7 @@ From the addon root:
 
 ```powershell
 scripts\doctor-sam.bat
+scripts\run-sam3-runtime-smoke.bat -DryRun
 scripts\test-addon.bat
 scripts\validate-local.bat
 ```
