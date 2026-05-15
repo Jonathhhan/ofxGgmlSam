@@ -25,11 +25,12 @@ Done:
 - mask overlay preview
 - useful missing-model, missing-backend, and disabled-adapter states
 - local SAM3 model auto-detection from example `bin\data\models`
+- lane-owned SAM3 runtime smoke for load, encode, point segmentation, and timing
 
 Next:
 
 - add a redistributable fixture image workflow
-- expand runtime verification from compile/link checks to real inference output checks
+- expand runtime verification from the SAM3 smoke to fixture-backed output checks
 
 ## Rules
 
