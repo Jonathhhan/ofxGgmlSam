@@ -3,7 +3,8 @@ param(
 	[switch]$DryRun,
 	[switch]$RepairProject,
 	[string]$Configuration = "Release",
-	[string]$Platform = "x64"
+	[string]$Platform = "x64",
+	[int]$Jobs = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +37,58 @@ function Get-MsBuild {
 	return ""
 }
 
+function Get-StableNameFragment {
+	param([string]$Text)
+	$sha1 = [System.Security.Cryptography.SHA1]::Create()
+	try {
+		$bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+		$hash = $sha1.ComputeHash($bytes)
+		return [System.BitConverter]::ToString($hash).Replace("-", "")
+	} finally {
+		$sha1.Dispose()
+	}
+}
+
+function Invoke-WithNamedMutex {
+	param(
+		[string]$Name,
+		[scriptblock]$Command
+	)
+	$mutex = New-Object System.Threading.Mutex($false, $Name)
+	$locked = $false
+	try {
+		$locked = $mutex.WaitOne([TimeSpan]::FromMinutes(30))
+		if (!$locked) {
+			throw "Timed out waiting for build lock: $Name"
+		}
+		& $Command
+	} finally {
+		if ($locked) {
+			$mutex.ReleaseMutex()
+		}
+		$mutex.Dispose()
+	}
+}
+
+function Resolve-BuildJobs {
+	param([int]$RequestedJobs)
+	if ($RequestedJobs -lt 0) {
+		throw "-Jobs must be 0 or greater."
+	}
+	if ($RequestedJobs -eq 0) {
+		return [Environment]::ProcessorCount
+	}
+	return $RequestedJobs
+}
+
+function Get-MsBuildParallelArguments {
+	param([int]$BuildJobs)
+	if ($BuildJobs -gt 1) {
+		return @("/p:MultiProcessorCompilation=true", "/m:$BuildJobs")
+	}
+	return @("/p:MultiProcessorCompilation=false", "/m:1")
+}
+
 function Test-GeneratedProjectWiring {
 	param([string]$ProjectPath)
 
@@ -57,6 +110,7 @@ function Test-GeneratedProjectWiring {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Split-Path -Parent $scriptRoot
+$ofRoot = Split-Path -Parent (Split-Path -Parent $addonRoot)
 $exampleName = "ofxGgmlSamPointExample"
 $exampleRoot = Join-Path $addonRoot $exampleName
 $exeSuffix = if ($IsLinux -or $IsMacOS) { "" } else { ".exe" }
@@ -88,10 +142,15 @@ if ($Build) {
 	if ([string]::IsNullOrWhiteSpace($msbuild)) {
 		throw "MSBuild.exe was not found."
 	}
-	Write-Step "Building $exampleName $Configuration $Platform"
-	& $msbuild $projectPath /t:Build /p:Configuration=$Configuration /p:Platform=$Platform /p:TrackFileAccess=false /p:MultiProcessorCompilation=false /m:1 /nr:false
-	if ($LASTEXITCODE -ne 0) {
-		throw "MSBuild $exampleName failed with exit code $LASTEXITCODE"
+	$buildJobs = Resolve-BuildJobs -RequestedJobs $Jobs
+	$parallelArgs = Get-MsBuildParallelArguments -BuildJobs $buildJobs
+	Write-Step "Building $exampleName $Configuration $Platform with MSBuild ($buildJobs jobs)"
+	$lockName = "Local\ofxGgml-msbuild-" + (Get-StableNameFragment $ofRoot)
+	Invoke-WithNamedMutex -Name $lockName -Command {
+		& $msbuild $projectPath /t:Build /p:Configuration=$Configuration /p:Platform=$Platform /p:TrackFileAccess=false @parallelArgs /nr:false
+		if ($LASTEXITCODE -ne 0) {
+			throw "MSBuild $exampleName failed with exit code $LASTEXITCODE"
+		}
 	}
 }
 
