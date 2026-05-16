@@ -83,6 +83,15 @@ namespace {
 		}
 		std::snprintf(buffer, size, "%s", text.c_str());
 	}
+
+	std::string chooseFile(const std::string & title, const std::string & currentPath) {
+		const auto normalizedPath = normalizeUserPath(currentPath);
+		const auto startPath = normalizedPath.empty()
+			? ofToDataPath("", true)
+			: normalizedPath;
+		auto result = ofSystemLoadDialog(title, false, startPath);
+		return result.bSuccess ? normalizeUserPath(result.getPath()) : "";
+	}
 }
 
 void ofApp::SegmentationWorker::start() {
@@ -240,8 +249,29 @@ void ofApp::draw() {
 	if (ImGui::InputText("Model", modelBuffer, sizeof(modelBuffer))) {
 		modelPath = modelBuffer;
 	}
+	if (ImGui::Button("Choose Model")) {
+		const auto selectedPath = chooseFile("Choose SAM model", modelPath);
+		if (!selectedPath.empty()) {
+			modelPath = selectedPath;
+			if (hasExtension(modelPath, { "ggml" })) {
+				selectedBackendIndex = 0;
+			} else if (hasExtension(modelPath, { "bin" })) {
+				selectedBackendIndex = 1;
+			}
+			copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
+			setStatus("selected model: " + modelPath);
+		}
+	}
 	if (ImGui::InputText("Image", imageBuffer, sizeof(imageBuffer))) {
 		imagePath = imageBuffer;
+	}
+	if (ImGui::Button("Choose Image")) {
+		const auto selectedPath = chooseFile("Choose image", imagePath);
+		if (!selectedPath.empty()) {
+			imagePath = selectedPath;
+			copyToBuffer(imagePath, imageBuffer, sizeof(imageBuffer));
+			loadImage();
+		}
 	}
 	if (ImGui::Combo("Backend", &selectedBackendIndex, kBackendLabels, IM_ARRAYSIZE(kBackendLabels))) {
 		if (!isModelPathCompatibleWithBackend(modelPath)) {
