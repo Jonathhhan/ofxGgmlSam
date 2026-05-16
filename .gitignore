@@ -5,6 +5,7 @@ build/
 *.pdb
 *.ilk
 *.log
+.sam3-runtime-smoke.json
 
 libs/sam.cpp/source/
 libs/sam.cpp/include/*
