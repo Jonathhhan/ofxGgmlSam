@@ -247,6 +247,8 @@ void writeJson(
 	std::cout << "  \"SummaryOnly\": " << (options.summaryOnly ? "true" : "false") << ",\n";
 	std::cout << "  \"Summary\": {\n";
 	std::cout << "    \"Passed\": " << (passed ? "true" : "false") << ",\n";
+	std::cout << "    \"InferenceChecked\": " << (passed ? "true" : "false") << ",\n";
+	std::cout << "    \"SmokeKind\": \"model-backed-sam3-point-segmentation\",\n";
 	std::cout << "    \"Backend\": \"" << jsonEscape(options.backend) << "\",\n";
 	std::cout << "    \"ModelPath\": \"" << jsonEscape(options.modelPath) << "\",\n";
 	std::cout << "    \"Threads\": " << options.threads << ",\n";

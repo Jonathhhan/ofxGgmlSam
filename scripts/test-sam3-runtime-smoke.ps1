@@ -36,5 +36,23 @@ if ($json.Backend -ne "cpu") {
 if (($json.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\.bat -Backend cpu") {
 	throw "SAM3 runtime smoke JSON did not include the CPU runtime command."
 }
+if ($json.SmokeKind -ne "model-backed-sam3-point-segmentation") {
+	throw "SAM3 runtime smoke JSON did not include the expected smoke kind."
+}
+
+$evidencePath = Join-Path ([System.IO.Path]::GetTempPath()) "ofxGgmlSam3-runtime-smoke-evidence.json"
+Remove-Item -LiteralPath $evidencePath -Force -ErrorAction SilentlyContinue
+$null = & $smokeScript -DryRun -Backend cpu -Json -SummaryOnly -OutputPath $evidencePath
+if ($LASTEXITCODE -ne 0) {
+	throw "run-sam3-runtime-smoke.ps1 evidence dry-run failed."
+}
+if (!(Test-Path -LiteralPath $evidencePath -PathType Leaf)) {
+	throw "SAM3 runtime smoke did not write dry-run evidence output."
+}
+$evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+if ($evidence.SmokeKind -ne "model-backed-sam3-point-segmentation") {
+	throw "SAM3 runtime smoke evidence did not preserve the smoke kind."
+}
+Remove-Item -LiteralPath $evidencePath -Force -ErrorAction SilentlyContinue
 
 Write-Host "SAM3 runtime smoke contract passed"

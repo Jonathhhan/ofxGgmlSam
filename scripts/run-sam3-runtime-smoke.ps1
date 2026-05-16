@@ -6,6 +6,7 @@ param(
 	[int] $ImageSize = 256,
 	[string] $Configuration = "Release",
 	[string] $BuildDir = "",
+	[string] $OutputPath = "",
 	[switch] $SkipBuild,
 	[switch] $BuildOnly,
 	[switch] $DryRun,
@@ -168,6 +169,26 @@ function ConvertTo-PlanJson {
 	return ($Plan | ConvertTo-Json -Depth 5)
 }
 
+function Write-SmokeOutputPath {
+	param(
+		[string] $Path,
+		[string] $Content
+	)
+	if ([string]::IsNullOrWhiteSpace($Path)) {
+		return
+	}
+	$target = if ([System.IO.Path]::IsPathRooted($Path)) {
+		$Path
+	} else {
+		Join-Path $addonRoot $Path
+	}
+	$directory = Split-Path -Parent $target
+	if (!(Test-Path -LiteralPath $directory -PathType Container)) {
+		New-Item -ItemType Directory -Path $directory -Force | Out-Null
+	}
+	Set-Content -LiteralPath $target -Value $Content
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Resolve-Path (Join-Path $scriptRoot "..")
 $toolDir = Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke"
@@ -194,16 +215,23 @@ $plan = @{
 	Threads = $Threads
 	ImageSize = $ImageSize
 	Ready = -not [string]::IsNullOrWhiteSpace($Model)
+	SmokeKind = "model-backed-sam3-point-segmentation"
+	InferenceCheck = "dry-run"
+	InferenceChecked = $false
 	NextCommands = @(
 		"scripts\run-sam3-runtime-smoke.bat -DryRun",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly",
-		"scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly"
+		"scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly",
+		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json",
+		"scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json"
 	)
 }
 
 if ($DryRun) {
 	if ($Json) {
-		ConvertTo-PlanJson -Plan $plan
+		$content = ConvertTo-PlanJson -Plan $plan
+		Write-SmokeOutputPath -Path $OutputPath -Content $content
+		$content
 	} else {
 		Write-Host "ofxGgmlSam SAM3 runtime smoke plan"
 		Write-Host "Tool:       $toolDir"
@@ -235,7 +263,9 @@ if ($BuildOnly) {
 	if ($Json) {
 		$plan.Executable = $exePath
 		$plan.BuildOnly = $true
-		ConvertTo-PlanJson -Plan $plan
+		$content = ConvertTo-PlanJson -Plan $plan
+		Write-SmokeOutputPath -Path $OutputPath -Content $content
+		$content
 	} else {
 		Write-Host "SAM3 runtime smoke built: $exePath"
 	}
@@ -261,9 +291,14 @@ Write-Step "Running SAM3 runtime smoke"
 if ($Json) {
 	$previousErrorActionPreference = $ErrorActionPreference
 	$ErrorActionPreference = "Continue"
-	& $exePath @args 2>$null
+	$smokeOutput = & $exePath @args 2>$null
 	$smokeExitCode = $LASTEXITCODE
 	$ErrorActionPreference = $previousErrorActionPreference
+	$content = ($smokeOutput | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+	Write-SmokeOutputPath -Path $OutputPath -Content $content
+	if (![string]::IsNullOrWhiteSpace($content)) {
+		Write-Output $content
+	}
 } else {
 	& $exePath @args
 	$smokeExitCode = $LASTEXITCODE
