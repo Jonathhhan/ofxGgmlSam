@@ -21,5 +21,6 @@
     "cpu",
     "cuda",
     "metal"
-  ]
+  ],
+  "inferenceSmokeReport": ".sam3-runtime-smoke.json"
 }
