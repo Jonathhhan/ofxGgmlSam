@@ -27,9 +27,12 @@ Done:
 - local SAM3 model auto-detection from example `bin\data\models`
 - lane-owned SAM3 runtime smoke for load, encode, point segmentation, and timing
 
+Done:
+
+- redistributable fixture image workflow for the SAM3 runtime smoke
+
 Next:
 
-- add a redistributable fixture image workflow
 - expand runtime verification from the SAM3 smoke to fixture-backed output checks
 
 ## Rules

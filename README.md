@@ -114,6 +114,12 @@ scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly
 ```
 
+For deterministic fixture planning, pass the committed hand-authored PPM image:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm
+```
+
 Verify that contract without a real model by building the mock adapter:
 
 ```powershell

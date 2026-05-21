@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -24,6 +25,7 @@ namespace {
 
 struct Options {
 	std::string modelPath;
+	std::string imagePath;
 	std::string backend = "cpu";
 	int threads = 0;
 	int imageSize = 256;
@@ -140,6 +142,8 @@ Options parseOptions(int argc, char ** argv) {
 		const std::string arg = argv[i];
 		if (arg == "--model") {
 			options.modelPath = requireValue(i, argc, argv, arg);
+		} else if (arg == "--image") {
+			options.imagePath = requireValue(i, argc, argv, arg);
 		} else if (arg == "--backend") {
 			options.backend = lower(requireValue(i, argc, argv, arg));
 		} else if (arg == "--threads") {
@@ -160,7 +164,7 @@ Options parseOptions(int argc, char ** argv) {
 			options.backend = "cuda";
 		} else if (arg == "--help" || arg == "-h") {
 			throw std::runtime_error(
-				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--json] [--summary-only]");
+				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--image fixture.ppm] [--json] [--summary-only]");
 		} else {
 			throw std::runtime_error("unknown argument: " + arg);
 		}
@@ -177,6 +181,77 @@ Options parseOptions(int argc, char ** argv) {
 	options.pointX = std::clamp(options.pointX, 0.0f, 1.0f);
 	options.pointY = std::clamp(options.pointY, 0.0f, 1.0f);
 	return options;
+}
+
+std::string readPpmToken(std::istream & input) {
+	std::string token;
+	while (input >> token) {
+		if (!token.empty() && token[0] == '#') {
+			std::string ignored;
+			std::getline(input, ignored);
+			continue;
+		}
+		return token;
+	}
+	return "";
+}
+
+uint8_t scalePpmSample(int sample, int maxValue) {
+	if (maxValue <= 0) {
+		throw std::runtime_error("PPM max value must be positive");
+	}
+	const int clamped = std::clamp(sample, 0, maxValue);
+	return static_cast<uint8_t>((clamped * 255 + (maxValue / 2)) / maxValue);
+}
+
+sam3_image loadPpmImage(const std::string & path) {
+	std::ifstream input(path, std::ios::binary);
+	if (!input) {
+		throw std::runtime_error("could not open fixture image: " + path);
+	}
+
+	const std::string magic = readPpmToken(input);
+	if (magic != "P3" && magic != "P6") {
+		throw std::runtime_error("fixture image must be an RGB PPM file");
+	}
+	const int width = parseInt(readPpmToken(input), "PPM width");
+	const int height = parseInt(readPpmToken(input), "PPM height");
+	const int maxValue = parseInt(readPpmToken(input), "PPM max value");
+	if (width <= 0 || height <= 0) {
+		throw std::runtime_error("fixture image dimensions must be positive");
+	}
+
+	sam3_image image;
+	image.width = width;
+	image.height = height;
+	image.channels = 3;
+	image.data.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * 3u);
+
+	if (magic == "P3") {
+		for (auto & value : image.data) {
+			const std::string sampleToken = readPpmToken(input);
+			if (sampleToken.empty()) {
+				throw std::runtime_error("fixture image ended before all PPM samples were read");
+			}
+			value = scalePpmSample(parseInt(sampleToken, "PPM sample"), maxValue);
+		}
+		return image;
+	}
+
+	const int separator = input.get();
+	if (separator == '\r' && input.peek() == '\n') {
+		input.get();
+	} else if (separator != '\n' && separator != '\t' && separator != ' ') {
+		throw std::runtime_error("PPM header was not followed by pixel data");
+	}
+	for (auto & value : image.data) {
+		const int sample = input.get();
+		if (sample == EOF) {
+			throw std::runtime_error("fixture image ended before all PPM bytes were read");
+		}
+		value = scalePpmSample(sample, maxValue);
+	}
+	return image;
 }
 
 sam3_image makeSyntheticImage(int size) {
@@ -225,7 +300,11 @@ void writeTextSummary(
 	std::cout << "Passed:    true\n";
 	std::cout << "Backend:   " << options.backend << "\n";
 	std::cout << "Model:     " << options.modelPath << "\n";
-	std::cout << "Image:     " << options.imageSize << "x" << options.imageSize << " synthetic RGB\n";
+	if (options.imagePath.empty()) {
+		std::cout << "Image:     " << options.imageSize << "x" << options.imageSize << " synthetic RGB\n";
+	} else {
+		std::cout << "Image:     " << options.imagePath << "\n";
+	}
 	std::cout << "Masks:     " << result.detections.size() << "\n";
 	std::cout << std::fixed << std::setprecision(1);
 	std::cout << "LoadMs:    " << timings.loadMs << "\n";
@@ -251,6 +330,7 @@ void writeJson(
 	std::cout << "    \"SmokeKind\": \"model-backed-sam3-point-segmentation\",\n";
 	std::cout << "    \"Backend\": \"" << jsonEscape(options.backend) << "\",\n";
 	std::cout << "    \"ModelPath\": \"" << jsonEscape(options.modelPath) << "\",\n";
+	std::cout << "    \"ImagePath\": \"" << jsonEscape(options.imagePath) << "\",\n";
 	std::cout << "    \"Threads\": " << options.threads << ",\n";
 	std::cout << "    \"ImageSize\": " << options.imageSize << ",\n";
 	std::cout << "    \"MaskCount\": " << maskCount << ",\n";
@@ -322,7 +402,9 @@ int main(int argc, char ** argv) {
 			throw std::runtime_error("sam3_create_state returned null");
 		}
 
-		auto image = makeSyntheticImage(options.imageSize);
+		auto image = options.imagePath.empty()
+			? makeSyntheticImage(options.imageSize)
+			: loadPpmImage(options.imagePath);
 		const auto encodeStart = Clock::now();
 		if (!sam3_encode_image(*state, *model, image)) {
 			throw std::runtime_error("sam3_encode_image failed");

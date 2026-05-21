@@ -83,6 +83,16 @@ a synthetic RGB image, loads a local SAM3/SAM2/EdgeTAM `.ggml` model, runs
 `sam3_encode_image`, then runs one `sam3_segment_pvs` prompt. It reports timing
 and mask-count metadata only; masks and generated media stay local.
 
+The smoke can also use a redistributable fixture image instead of the synthetic
+input. The first committed fixture is `tests\fixtures\sam-point-square.ppm`, a
+tiny hand-authored RGB PPM image with no model weights, generated masks, or user
+media. Use it when a deterministic input path is needed before adding
+fixture-backed output checks:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm
+```
+
 ## Validation ladder
 
 Use the smallest command that proves the changed layer:
@@ -93,6 +103,7 @@ Use the smallest command that proves the changed layer:
 | Local setup diagnosis | `scripts\doctor-sam.bat` |
 | Backend-specific diagnosis | `scripts\doctor-sam.bat -Backend sam3.cpp` |
 | SAM3 runtime smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun` |
+| SAM3 fixture smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm` |
 | SAM3 CPU runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly` |
 | SAM3 CUDA runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly` |
 | Point example launch path | `scripts\run-point-example.bat -DryRun` |

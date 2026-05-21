@@ -4,6 +4,7 @@ param(
 	[string] $Backend = $(if ([string]::IsNullOrWhiteSpace($env:OFXGGML_SAM_RUNTIME_BACKEND)) { "cpu" } else { $env:OFXGGML_SAM_RUNTIME_BACKEND }),
 	[int] $Threads = 0,
 	[int] $ImageSize = 256,
+	[string] $Image = "",
 	[string] $Configuration = "Release",
 	[string] $BuildDir = "",
 	[string] $OutputPath = "",
@@ -195,6 +196,12 @@ $toolDir = Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke"
 if ([string]::IsNullOrWhiteSpace($BuildDir)) {
 	$BuildDir = Join-Path $addonRoot "build\sam3-runtime-smoke"
 }
+if (-not [string]::IsNullOrWhiteSpace($Image)) {
+	$Image = [Environment]::ExpandEnvironmentVariables($Image)
+	if (-not [System.IO.Path]::IsPathRooted($Image)) {
+		$Image = Join-Path $addonRoot $Image
+	}
+}
 
 if (-not [string]::IsNullOrWhiteSpace($Model)) {
 	$Model = [Environment]::ExpandEnvironmentVariables($Model)
@@ -212,6 +219,7 @@ $plan = @{
 	Executable = $exePath
 	Backend = $Backend
 	Model = $Model
+	Image = $Image
 	Threads = $Threads
 	ImageSize = $ImageSize
 	Ready = -not [string]::IsNullOrWhiteSpace($Model)
@@ -239,6 +247,7 @@ if ($DryRun) {
 		Write-Host "Executable: $exePath"
 		Write-Host "Backend:    $Backend"
 		Write-Host "Model:      $Model"
+		Write-Host "Image:      $Image"
 		Write-Host "Ready:      $($plan.Ready)"
 		Write-Host "Next:       scripts\run-sam3-runtime-smoke.bat -Backend $Backend -Json -SummaryOnly"
 	}
@@ -277,6 +286,9 @@ $args = @(
 	"--backend", $Backend,
 	"--image-size", $ImageSize.ToString()
 )
+if (-not [string]::IsNullOrWhiteSpace($Image)) {
+	$args += @("--image", $Image)
+}
 if ($Threads -gt 0) {
 	$args += @("--threads", $Threads.ToString())
 }

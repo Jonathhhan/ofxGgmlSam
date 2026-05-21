@@ -4,6 +4,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $smokeScript = Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1"
+$fixtureImage = Join-Path (Split-Path -Parent $scriptRoot) "tests\fixtures\sam-point-square.ppm"
 
 $textOutput = & $smokeScript -DryRun -Backend cpu *>&1 | ForEach-Object { $_.ToString() }
 if ($LASTEXITCODE -ne 0) {
@@ -15,6 +16,7 @@ foreach ($expected in @(
 	"Tool:",
 	"BuildDir:",
 	"Backend:    cpu",
+	"Image:",
 	"Ready:"
 )) {
 	if ($text -notmatch [regex]::Escape($expected)) {
@@ -38,6 +40,15 @@ if (($json.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\.bat -Back
 }
 if ($json.SmokeKind -ne "model-backed-sam3-point-segmentation") {
 	throw "SAM3 runtime smoke JSON did not include the expected smoke kind."
+}
+
+$fixtureJsonOutput = & $smokeScript -DryRun -Backend cpu -Image $fixtureImage -Json -SummaryOnly *>&1 | ForEach-Object { $_.ToString() }
+if ($LASTEXITCODE -ne 0) {
+	throw "run-sam3-runtime-smoke.ps1 -DryRun -Image -Json failed."
+}
+$fixtureJson = ($fixtureJsonOutput -join "`n") | ConvertFrom-Json
+if ($fixtureJson.Image -ne $fixtureImage) {
+	throw "SAM3 runtime smoke JSON did not preserve the requested fixture image."
 }
 
 $evidencePath = Join-Path ([System.IO.Path]::GetTempPath()) "ofxGgmlSam3-runtime-smoke-evidence.json"
