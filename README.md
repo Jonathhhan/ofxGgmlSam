@@ -18,6 +18,14 @@ Current addon API version: `1.0.1`.
 
 Family map: https://jonathhhan.github.io/ofxGgmlCore/
 
+## Features
+
+- SAM/SAM2/SAM3 model discovery
+- point-prompt segmentation
+- mask generation and preview workflow
+- CPU/CUDA/Metal runtime selection
+- model-backed runtime smoke evidence
+
 The first public API is a small bridge backend:
 
 - `ofxGgmlSamInference`
