@@ -67,6 +67,32 @@ function Get-VisualStudioDevCmd {
 	return ""
 }
 
+function Test-CMakeCacheCompilerExists {
+	param([string]$BuildDir)
+
+	$cachePath = Join-Path $BuildDir "CMakeCache.txt"
+	if (!(Test-Path -LiteralPath $cachePath -PathType Leaf)) {
+		return $true
+	}
+
+	$cacheLines = Get-Content -LiteralPath $cachePath
+	foreach ($compilerName in @("CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER")) {
+		$pattern = "^${compilerName}:FILEPATH=(.+)$"
+		$line = $cacheLines | Where-Object { $_ -match $pattern } | Select-Object -First 1
+		if (!$line) {
+			continue
+		}
+		if ($line -notmatch $pattern) {
+			continue
+		}
+		$compilerPath = $Matches[1]
+		if (![string]::IsNullOrWhiteSpace($compilerPath) -and !(Test-Path -LiteralPath $compilerPath -PathType Leaf)) {
+			return $false
+		}
+	}
+	return $true
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Resolve-Path (Join-Path $scriptRoot "..")
 $testsDir = Join-Path $addonRoot "tests"
@@ -76,6 +102,11 @@ if ([string]::IsNullOrWhiteSpace($BuildDir)) {
 
 if ($Clean -and (Test-Path -LiteralPath $BuildDir)) {
 	Write-Step "Cleaning $BuildDir"
+	Remove-Item -LiteralPath $BuildDir -Recurse -Force
+}
+
+if ((Test-Path -LiteralPath $BuildDir -PathType Container) -and !(Test-CMakeCacheCompilerExists -BuildDir $BuildDir)) {
+	Write-Step "Cleaning stale CMake cache in $BuildDir"
 	Remove-Item -LiteralPath $BuildDir -Recurse -Force
 }
 

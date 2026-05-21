@@ -84,6 +84,18 @@ The `sam3.cpp` adapter caches encoded image state per loaded runtime. Changing
 only point prompts reuses the cached image embedding and runs the prompt decoder
 directly; changing the image invalidates the cache and triggers a fresh encode.
 
+List local SAM model candidates before running the example or runtime smoke:
+
+```powershell
+scripts\list-models.bat -Json -SummaryOnly
+```
+
+The discovery script checks `OFXGGML_SAM_MODEL`, the point example's
+`bin\data` model folders, the addon's local `models` folder, and the shared
+addons-level `models` folder. It reports `.ggml` and `.gguf` SAM/SAM2/SAM3 or
+EdgeTAM candidates, and marks the `.ggml` SAM3/SAM2/EdgeTAM file that the
+runtime smoke can use automatically.
+
 Verify the in-process SAM3 lane with the headless runtime smoke. The dry-run is
 model-free and reports the selected executable, backend, and model discovery
 state:
@@ -144,6 +156,7 @@ From the addon root:
 
 ```powershell
 scripts\doctor-sam.bat
+scripts\list-models.bat -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -DryRun
 scripts\test-addon.bat
 scripts\validate-local.bat
@@ -153,6 +166,7 @@ On macOS/Linux:
 
 ```sh
 ./scripts/doctor-sam.sh
+./scripts/list-models.sh -Json -SummaryOnly
 ./scripts/test-addon.sh
 ./scripts/validate-local.sh
 ```

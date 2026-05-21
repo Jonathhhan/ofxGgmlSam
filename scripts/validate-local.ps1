@@ -118,6 +118,9 @@ Assert-Path (Join-Path $scriptRoot "doctor-sam.ps1") "SAM doctor script"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.bat") "SAM doctor Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.sh") "SAM doctor shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-doctor-sam.ps1") "SAM doctor smoke test"
+Assert-Path (Join-Path $scriptRoot "list-models.ps1") "SAM model discovery script"
+Assert-Path (Join-Path $scriptRoot "list-models.bat") "SAM model discovery Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "list-models.sh") "SAM model discovery shell wrapper"
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "SAM3 runtime smoke script"
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.bat") "SAM3 runtime smoke Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.sh") "SAM3 runtime smoke shell wrapper"
@@ -181,6 +184,23 @@ foreach ($expected in @("Example:    ofxGgmlSamPointExample", "Executable:", "Pr
 		throw "Point example dry-run did not include expected text: $expected"
 	}
 }
+
+Write-Step "Checking SAM model discovery"
+$modelDiscoveryOutput = & (Join-Path $scriptRoot "list-models.ps1") -Json -SummaryOnly 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM model discovery failed with exit code $LASTEXITCODE"
+}
+$modelDiscovery = $modelDiscoveryOutput | ConvertFrom-Json
+if ($modelDiscovery.Name -ne "ofxGgmlSam model discovery") {
+	throw "SAM model discovery JSON did not include the expected name."
+}
+if ($modelDiscovery.Summary.SearchDirectoryCount -lt 3) {
+	throw "SAM model discovery did not report the expected search directories."
+}
+if (($modelDiscovery.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\.bat -DryRun") {
+	throw "SAM model discovery JSON did not include the runtime smoke next command."
+}
+Assert-FileContains (Join-Path $addonRoot "README.md") "scripts\\list-models\.bat -Json -SummaryOnly" "README"
 
 Write-Step "Running headless tests"
 & (Join-Path $scriptRoot "test-addon.ps1")
