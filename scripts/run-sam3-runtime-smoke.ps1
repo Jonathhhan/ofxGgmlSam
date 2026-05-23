@@ -12,7 +12,8 @@ param(
 	[switch] $BuildOnly,
 	[switch] $DryRun,
 	[switch] $Json,
-	[switch] $SummaryOnly
+	[switch] $SummaryOnly,
+	[switch] $CacheVerify
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,25 +35,15 @@ function Convert-ToCmdArgument {
 }
 
 function Invoke-CheckedNative {
-	param(
-		[string] $Step,
-		[scriptblock] $Command
-	)
+	param([string] $Step, [scriptblock] $Command)
 	& $Command
-	if ($LASTEXITCODE -ne 0) {
-		throw "$Step failed with exit code $LASTEXITCODE"
-	}
+	if ($LASTEXITCODE -ne 0) { throw "$Step failed with exit code $LASTEXITCODE" }
 }
 
 function Invoke-CheckedCmd {
-	param(
-		[string] $Step,
-		[string] $Command
-	)
+	param([string] $Step, [string] $Command)
 	& cmd.exe /d /s /c $Command
-	if ($LASTEXITCODE -ne 0) {
-		throw "$Step failed with exit code $LASTEXITCODE"
-	}
+	if ($LASTEXITCODE -ne 0) { throw "$Step failed with exit code $LASTEXITCODE" }
 }
 
 function Get-VisualStudioDevCmd {
@@ -60,83 +51,54 @@ function Get-VisualStudioDevCmd {
 	$vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 	if (Test-Path -LiteralPath $vswhere) {
 		$installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
-		if ($installPath) {
-			$candidates.Add((Join-Path $installPath "Common7\Tools\VsDevCmd.bat"))
-		}
+		if ($installPath) { $candidates.Add((Join-Path $installPath "Common7\Tools\VsDevCmd.bat")) }
 	}
-
 	foreach ($version in @("18", "17", "16")) {
 		foreach ($edition in @("Community", "Professional", "Enterprise", "BuildTools")) {
 			$candidates.Add("C:\Program Files\Microsoft Visual Studio\$version\$edition\Common7\Tools\VsDevCmd.bat")
 			$candidates.Add("C:\Program Files (x86)\Microsoft Visual Studio\$version\$edition\Common7\Tools\VsDevCmd.bat")
 		}
 	}
-
 	foreach ($candidate in $candidates) {
-		if (Test-Path -LiteralPath $candidate) {
-			return $candidate
-		}
+		if (Test-Path -LiteralPath $candidate) { return $candidate }
 	}
 	return ""
 }
 
 function Find-DefaultModel {
 	param([string] $AddonRoot)
-
 	$searchRoots = @(
 		(Join-Path $AddonRoot "ofxGgmlSamPointExample\bin\data\models"),
 		(Join-Path $AddonRoot "models"),
 		(Join-Path (Split-Path -Parent $AddonRoot) "models")
 	)
 	foreach ($root in $searchRoots) {
-		if (-not (Test-Path -LiteralPath $root -PathType Container)) {
-			continue
-		}
+		if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
 		$candidate = Get-ChildItem -LiteralPath $root -File -ErrorAction SilentlyContinue |
-			Where-Object {
-				$_.Extension -ieq ".ggml" -and
-				$_.Name -match "(sam3|sam2|edgetam)"
-			} |
-			Sort-Object Name |
-			Select-Object -First 1
-		if ($candidate) {
-			return $candidate.FullName
-		}
+			Where-Object { $_.Extension -ieq ".ggml" -and $_.Name -match "(sam3|sam2|edgetam)" } |
+			Sort-Object Name | Select-Object -First 1
+		if ($candidate) { return $candidate.FullName }
 	}
 	return ""
 }
 
 function Get-SmokeExecutable {
-	param(
-		[string] $BuildDir,
-		[string] $Configuration
-	)
-
+	param([string] $BuildDir, [string] $Configuration)
 	$candidates = @(
 		(Join-Path $BuildDir "ofxGgmlSam3RuntimeSmoke.exe"),
 		(Join-Path $BuildDir "$Configuration\ofxGgmlSam3RuntimeSmoke.exe")
 	)
 	foreach ($candidate in $candidates) {
-		if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-			return $candidate
-		}
+		if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
 	}
 	return $candidates[0]
 }
 
 function Build-SmokeTool {
-	param(
-		[string] $ToolDir,
-		[string] $BuildDir,
-		[string] $Configuration,
-		[bool] $Quiet
-	)
-
+	param([string] $ToolDir, [string] $BuildDir, [string] $Configuration, [bool] $Quiet)
 	if (Test-WindowsHost) {
 		$vsDevCmd = Get-VisualStudioDevCmd
-		if ([string]::IsNullOrWhiteSpace($vsDevCmd)) {
-			throw "Visual Studio C++ build tools were not found."
-		}
+		if ([string]::IsNullOrWhiteSpace($vsDevCmd)) { throw "Visual Studio C++ build tools were not found." }
 		$quietRedirect = if ($Quiet) { " >nul" } else { "" }
 		$configure = "cmake -S $(Convert-ToCmdArgument $ToolDir) -B $(Convert-ToCmdArgument $BuildDir) -G $(Convert-ToCmdArgument "NMake Makefiles") -DCMAKE_BUILD_TYPE=$Configuration$quietRedirect"
 		$build = "cmake --build $(Convert-ToCmdArgument $BuildDir)$quietRedirect"
@@ -144,25 +106,43 @@ function Build-SmokeTool {
 		Invoke-CheckedCmd "SAM3 runtime smoke build" $command
 	} else {
 		if ($Quiet) {
-			$configureOutput = & cmake -S $ToolDir -B $BuildDir -DCMAKE_BUILD_TYPE=$Configuration 2>&1
-			if ($LASTEXITCODE -ne 0) {
-				$configureOutput | Write-Error
-				throw "cmake configure SAM3 runtime smoke failed with exit code $LASTEXITCODE"
-			}
-			$buildOutput = & cmake --build $BuildDir --config $Configuration 2>&1
-			if ($LASTEXITCODE -ne 0) {
-				$buildOutput | Write-Error
-				throw "cmake build SAM3 runtime smoke failed with exit code $LASTEXITCODE"
-			}
+			$out = & cmake -S $ToolDir -B $BuildDir -DCMAKE_BUILD_TYPE=$Configuration 2>&1
+			if ($LASTEXITCODE -ne 0) { $out | Write-Error; throw "cmake configure failed" }
+			$out = & cmake --build $BuildDir --config $Configuration 2>&1
+			if ($LASTEXITCODE -ne 0) { $out | Write-Error; throw "cmake build failed" }
 		} else {
-			Invoke-CheckedNative "cmake configure SAM3 runtime smoke" {
-				cmake -S $ToolDir -B $BuildDir -DCMAKE_BUILD_TYPE=$Configuration
-			}
-			Invoke-CheckedNative "cmake build SAM3 runtime smoke" {
-				cmake --build $BuildDir --config $Configuration
-			}
+			Invoke-CheckedNative "cmake configure" { cmake -S $ToolDir -B $BuildDir -DCMAKE_BUILD_TYPE=$Configuration }
+			Invoke-CheckedNative "cmake build" { cmake --build $BuildDir --config $Configuration }
 		}
 	}
+}
+
+function Classify-Failure {
+	param([string] $ErrorMessage, [string] $ModelPath, [string] $Backend)
+	if ([string]::IsNullOrWhiteSpace($ErrorMessage)) { return "none" }
+	$lower = $ErrorMessage.ToLowerInvariant()
+	if ($lower -match "no sam3 model|model was not found|could not open.*model|--model is required") {
+		return "missing_model"
+	}
+	if ($lower -match "wrong.*extension|extension.*mismatch|\.gguf.*sam3|expected.*\.ggml") {
+		return "wrong_extension"
+	}
+	if ($lower -match "sam3\.h was not found|sam3\.cpp|runtime.*not found|lib.*not found|build tools.*not found") {
+		return "missing_runtime"
+	}
+	if ($lower -match "build.*failed|cmake.*failed|compile.*failed|link.*failed|vsdevcmd") {
+		return "build_failure"
+	}
+	if ($lower -match "cuda.*mismatch|ggml.*mismatch|cuda.*not found|cudart|cublas.*not found|backend.*cuda.*not.*available") {
+		return "cuda_mismatch"
+	}
+	if ($lower -match "executable.*not found|not found.*exe") {
+		return "missing_runtime"
+	}
+	if ($lower -match "sam3_load_model|sam3_create_state|sam3_encode_image|sam3_segment_pvs|returned null|produced no detections") {
+		return "runtime_execution_failure"
+	}
+	return "runtime_execution_failure"
 }
 
 function ConvertTo-PlanJson {
@@ -171,23 +151,22 @@ function ConvertTo-PlanJson {
 }
 
 function Write-SmokeOutputPath {
-	param(
-		[string] $Path,
-		[string] $Content
-	)
-	if ([string]::IsNullOrWhiteSpace($Path)) {
-		return
-	}
-	$target = if ([System.IO.Path]::IsPathRooted($Path)) {
-		$Path
-	} else {
-		Join-Path $addonRoot $Path
-	}
+	param([string] $Path, [string] $Content)
+	if ([string]::IsNullOrWhiteSpace($Path)) { return }
+	$target = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path $addonRoot $Path }
 	$directory = Split-Path -Parent $target
 	if (!(Test-Path -LiteralPath $directory -PathType Container)) {
 		New-Item -ItemType Directory -Path $directory -Force | Out-Null
 	}
 	Set-Content -LiteralPath $target -Value $Content
+}
+
+function Get-ModelFamilyHint {
+	param([string] $Name)
+	if ($Name -match "edgetam") { return "edgetam" }
+	if ($Name -match "sam3") { return "sam3" }
+	if ($Name -match "sam2") { return "sam2" }
+	return "unknown"
 }
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -198,17 +177,10 @@ if ([string]::IsNullOrWhiteSpace($BuildDir)) {
 }
 if (-not [string]::IsNullOrWhiteSpace($Image)) {
 	$Image = [Environment]::ExpandEnvironmentVariables($Image)
-	if (-not [System.IO.Path]::IsPathRooted($Image)) {
-		$Image = Join-Path $addonRoot $Image
-	}
+	if (-not [System.IO.Path]::IsPathRooted($Image)) { $Image = Join-Path $addonRoot $Image }
 }
-
-if (-not [string]::IsNullOrWhiteSpace($Model)) {
-	$Model = [Environment]::ExpandEnvironmentVariables($Model)
-}
-if ([string]::IsNullOrWhiteSpace($Model)) {
-	$Model = Find-DefaultModel -AddonRoot $addonRoot
-}
+if (-not [string]::IsNullOrWhiteSpace($Model)) { $Model = [Environment]::ExpandEnvironmentVariables($Model) }
+if ([string]::IsNullOrWhiteSpace($Model)) { $Model = Find-DefaultModel -AddonRoot $addonRoot }
 
 $exePath = Get-SmokeExecutable -BuildDir $BuildDir -Configuration $Configuration
 $plan = @{
@@ -226,6 +198,7 @@ $plan = @{
 	SmokeKind = "model-backed-sam3-point-segmentation"
 	InferenceCheck = "dry-run"
 	InferenceChecked = $false
+	FailureCategory = "none"
 	NextCommands = @(
 		"scripts\run-sam3-runtime-smoke.bat -DryRun",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly",
@@ -281,40 +254,103 @@ if ($BuildOnly) {
 	exit 0
 }
 
-$args = @(
-	"--model", $Model,
-	"--backend", $Backend,
-	"--image-size", $ImageSize.ToString()
-)
-if (-not [string]::IsNullOrWhiteSpace($Image)) {
-	$args += @("--image", $Image)
-}
-if ($Threads -gt 0) {
-	$args += @("--threads", $Threads.ToString())
-}
-if ($Json) {
-	$args += "--json"
-}
-if ($SummaryOnly) {
-	$args += "--summary-only"
-}
-
-Write-Step "Running SAM3 runtime smoke"
-if ($Json) {
-	$previousErrorActionPreference = $ErrorActionPreference
-	$ErrorActionPreference = "Continue"
+function Invoke-SmokeRun {
+	param([string] $RunLabel, [bool] $WantJson)
+	$args = @("--model", $Model, "--backend", $Backend, "--image-size", $ImageSize.ToString())
+	if (-not [string]::IsNullOrWhiteSpace($Image)) { $args += @("--image", $Image) }
+	if ($Threads -gt 0) { $args += @("--threads", $Threads.ToString()) }
+	if ($WantJson) { $args += "--json" }
+	if ($SummaryOnly) { $args += "--summary-only" }
+	Write-Step "$RunLabel"
+	$prev = $ErrorActionPreference; $ErrorActionPreference = "Continue"
 	$smokeOutput = & $exePath @args 2>$null
 	$smokeExitCode = $LASTEXITCODE
-	$ErrorActionPreference = $previousErrorActionPreference
-	$content = ($smokeOutput | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
-	Write-SmokeOutputPath -Path $OutputPath -Content $content
-	if (![string]::IsNullOrWhiteSpace($content)) {
-		Write-Output $content
+	$ErrorActionPreference = $prev
+	$rawOutput = ($smokeOutput | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+	if ($smokeExitCode -ne 0) {
+		$errorText = $rawOutput.Trim()
+		if ([string]::IsNullOrWhiteSpace($errorText)) { $errorText = "SAM3 runtime smoke failed" }
+		throw $errorText
 	}
-} else {
-	& $exePath @args
-	$smokeExitCode = $LASTEXITCODE
+	return $rawOutput
 }
-if ($smokeExitCode -ne 0) {
-	throw "SAM3 runtime smoke failed with exit code $smokeExitCode"
+
+try {
+	$smokeOutput = Invoke-SmokeRun -RunLabel "Running SAM3 runtime smoke" -WantJson:$Json.IsPresent
+
+	$cacheInfo = $null
+	if ($CacheVerify) {
+		$cacheOutput = Invoke-SmokeRun -RunLabel "Running repeated prompt (cache verify)" -WantJson:$true
+	}
+
+	$result = if ($Json) {
+		try { $smokeOutput | ConvertFrom-Json } catch { $null }
+	} else { $null }
+
+	$failureCategory = "none"
+	$errorDetail = ""
+	if ($result -and $result.Summary -and [string]::IsNullOrWhiteSpace($result.Summary.Error)) {
+		$failureCategory = "none"
+	} elseif ($result -and $result.Summary -and ![string]::IsNullOrWhiteSpace($result.Summary.Error)) {
+		$errorDetail = $result.Summary.Error
+		$failureCategory = Classify-Failure -ErrorMessage $errorDetail -ModelPath $Model -Backend $Backend
+	}
+
+	if ($CacheVerify -and $result -and $cacheOutput) {
+		try {
+			$cacheJson = $cacheOutput | ConvertFrom-Json
+			if ($cacheJson -and $cacheJson.Summary) {
+				$firstEncode = [double]$result.Summary.EncodeMs
+				$secondEncode = [double]$cacheJson.Summary.EncodeMs
+				$cacheHit = $secondEncode -lt $firstEncode
+				$cacheInfo = [ordered] @{
+					FirstEncodeMs = $firstEncode
+					SecondEncodeMs = $secondEncode
+					CacheHit = $cacheHit
+					CacheRatio = if ($firstEncode -gt 0) { [math]::Round($secondEncode / $firstEncode, 3) } else { 1.0 }
+				}
+			}
+		} catch {
+			$cacheInfo = [ordered] @{ FirstEncodeMs = 0; SecondEncodeMs = 0; CacheHit = $false; CacheRatio = 0; Error = $_.Exception.Message }
+		}
+	}
+
+	$content = if ($Json -and $result) {
+		$envelope = [ordered] @{
+			SummaryOnly = $result.SummaryOnly
+			Summary = $result.Summary
+			FailureCategory = $failureCategory
+		}
+		if ($CacheVerify -and $cacheInfo) { $envelope.CacheVerify = $cacheInfo }
+		if ($null -ne $result.Masks) { $envelope.Masks = $result.Masks }
+		$envelope | ConvertTo-Json -Depth 5
+	} else { $smokeOutput }
+
+	Write-SmokeOutputPath -Path $OutputPath -Content $content
+	if (![string]::IsNullOrWhiteSpace($content) -and $Json) { Write-Output $content }
+} catch {
+	$errorMsg = $_.Exception.Message
+	$failureCategory = Classify-Failure -ErrorMessage $errorMsg -ModelPath $Model -Backend $Backend
+	if ($Json) {
+		$modelFileName = if (-not [string]::IsNullOrWhiteSpace($Model)) { [System.IO.Path]::GetFileName($Model) } else { "" }
+		$modelFamily = Get-ModelFamilyHint -Name $modelFileName
+		$jsonError = [ordered] @{
+			SummaryOnly = $true
+			Summary = [ordered] @{
+				Passed = $false; InferenceChecked = $false; SmokeKind = "model-backed-sam3-point-segmentation"
+				Backend = $Backend; ModelPath = $Model; ImagePath = $Image; Threads = $Threads; ImageSize = $ImageSize
+				MaskCount = 0; LoadMs = 0; StateMs = 0; EncodeMs = 0; SegmentMs = 0; TotalMs = 0; Error = $errorMsg
+			}
+			FailureCategory = $failureCategory
+			ModelFamily = $modelFamily
+		}
+		$content = $jsonError | ConvertTo-Json -Depth 5
+		Write-SmokeOutputPath -Path $OutputPath -Content $content
+		Write-Output $content
+	} else {
+		Write-Host "ofxGgmlSam SAM3 runtime smoke failed"
+		Write-Host "Category: $failureCategory"
+		Write-Host "Error:    $errorMsg"
+	}
+	exit 1
 }
