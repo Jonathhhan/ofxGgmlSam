@@ -136,6 +136,16 @@ inline ofxGgmlSamResult segmentWithModel(
 		result.errorMessage = "sam.cpp model is not loaded";
 		return result;
 	}
+	if (request.refinementMask.isAllocated()) {
+		result.errorMessage =
+			"sam.cpp adapter mask refinement is not wired yet; use the external adapter for refinement masks";
+		return result;
+	}
+	if (!request.boxes.empty()) {
+		result.errorMessage =
+			"sam.cpp adapter box prompts are not wired yet; use the external adapter for box prompts";
+		return result;
+	}
 	if (request.points.empty()) {
 		result.errorMessage = "sam.cpp adapter requires at least one point prompt";
 		return result;

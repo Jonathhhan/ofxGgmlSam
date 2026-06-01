@@ -174,8 +174,23 @@ inline ofxGgmlSamResult segmentWithRuntime(
 		result.errorMessage = "sam3.cpp runtime is not loaded";
 		return result;
 	}
-	if (request.points.empty()) {
-		result.errorMessage = "sam3.cpp adapter requires at least one point prompt";
+	if (request.refinementMask.isAllocated()) {
+		result.errorMessage =
+			"sam3.cpp adapter mask refinement is not wired yet; use the external adapter for refinement masks";
+		return result;
+	}
+	if (request.points.empty() && request.boxes.empty()) {
+		result.errorMessage = "sam3.cpp adapter requires at least one point or box prompt";
+		return result;
+	}
+	if (request.boxes.size() > 1) {
+		result.errorMessage =
+			"sam3.cpp adapter currently supports one box prompt per request";
+		return result;
+	}
+	if (!request.boxes.empty() && !request.boxes.front().positive) {
+		result.errorMessage =
+			"sam3.cpp adapter currently supports positive box prompts only";
 		return result;
 	}
 
@@ -212,6 +227,20 @@ inline ofxGgmlSamResult segmentWithRuntime(
 		} else {
 			pvs.neg_points.push_back(samPoint);
 		}
+	}
+	if (!request.boxes.empty()) {
+		const auto & box = request.boxes.front();
+		pvs.box = {
+			std::clamp(box.x0, 0.0f, 1.0f) *
+				static_cast<float>(request.image.width),
+			std::clamp(box.y0, 0.0f, 1.0f) *
+				static_cast<float>(request.image.height),
+			std::clamp(box.x1, 0.0f, 1.0f) *
+				static_cast<float>(request.image.width),
+			std::clamp(box.y1, 0.0f, 1.0f) *
+				static_cast<float>(request.image.height)
+		};
+		pvs.use_box = true;
 	}
 
 	const sam3_result samResult =
@@ -251,6 +280,7 @@ inline ofxGgmlSamResult segmentWithRuntime(
 	result.metadata.push_back({ "threads", std::to_string(runtime->params.n_threads) });
 	result.metadata.push_back({ "useGpu", runtime->params.use_gpu ? "true" : "false" });
 	result.metadata.push_back({ "imageCache", imageCacheHit ? "hit" : "miss" });
+	result.metadata.push_back({ "boxPrompt", pvs.use_box ? "true" : "false" });
 	result.metadata.push_back({ "modelPath", runtime->modelPath });
 	return result;
 }

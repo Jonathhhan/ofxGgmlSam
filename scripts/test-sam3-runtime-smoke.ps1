@@ -38,8 +38,17 @@ if ($json.Backend -ne "cpu") {
 if (($json.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\.bat -Backend cpu") {
 	throw "SAM3 runtime smoke JSON did not include the CPU runtime command."
 }
+if (($json.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\.bat -Backend cpu .*BoxVerify") {
+	throw "SAM3 runtime smoke JSON did not include the CPU box verification command."
+}
 if ($json.SmokeKind -ne "model-backed-sam3-point-segmentation") {
 	throw "SAM3 runtime smoke JSON did not include the expected smoke kind."
+}
+if ($json.FixtureOutputCheck -ne "sam-point-square prompt-mask invariants") {
+	throw "SAM3 runtime smoke JSON did not describe the fixture output check."
+}
+if ($json.FixtureChecked -ne $false) {
+	throw "SAM3 runtime smoke dry-run should not mark fixture output as checked."
 }
 
 $fixtureJsonOutput = & $smokeScript -DryRun -Backend cpu -Image $fixtureImage -Json -SummaryOnly *>&1 | ForEach-Object { $_.ToString() }
@@ -49,6 +58,9 @@ if ($LASTEXITCODE -ne 0) {
 $fixtureJson = ($fixtureJsonOutput -join "`n") | ConvertFrom-Json
 if ($fixtureJson.Image -ne $fixtureImage) {
 	throw "SAM3 runtime smoke JSON did not preserve the requested fixture image."
+}
+if (($fixtureJson.NextCommands -join "`n") -notmatch "sam-point-square\.ppm .*FixtureVerify") {
+	throw "SAM3 runtime smoke JSON did not include the fixture verification command."
 }
 
 $evidencePath = Join-Path ([System.IO.Path]::GetTempPath()) "ofxGgmlSam3-runtime-smoke-evidence.json"
@@ -83,6 +95,24 @@ if ($LASTEXITCODE -ne 0) {
 $jsonCacheVerifyObj = ($jsonCacheVerify -join "`n") | ConvertFrom-Json
 if ($jsonCacheVerifyObj.FailureCategory -ne "none") {
     throw "SAM3 runtime smoke dry-run with -CacheVerify should have FailureCategory 'none'"
+}
+
+$jsonFixtureVerify = & $smokeScript -DryRun -Backend cpu -Image $fixtureImage -Json -SummaryOnly -FixtureVerify *>&1 | ForEach-Object { $_.ToString() }
+if ($LASTEXITCODE -ne 0) {
+    throw "run-sam3-runtime-smoke.ps1 -DryRun -FixtureVerify failed."
+}
+$jsonFixtureVerifyObj = ($jsonFixtureVerify -join "`n") | ConvertFrom-Json
+if ($jsonFixtureVerifyObj.FixtureVerify -ne $true) {
+    throw "SAM3 runtime smoke dry-run with -FixtureVerify should preserve FixtureVerify intent."
+}
+
+$jsonBoxVerify = & $smokeScript -DryRun -Backend cpu -Json -SummaryOnly -BoxVerify *>&1 | ForEach-Object { $_.ToString() }
+if ($LASTEXITCODE -ne 0) {
+    throw "run-sam3-runtime-smoke.ps1 -DryRun -BoxVerify failed."
+}
+$jsonBoxVerifyObj = ($jsonBoxVerify -join "`n") | ConvertFrom-Json
+if ($jsonBoxVerifyObj.BoxVerify -ne $true -or $jsonBoxVerifyObj.BoxPrompt -ne $true) {
+    throw "SAM3 runtime smoke dry-run with -BoxVerify should preserve box verification intent."
 }
 
 Write-Host "SAM3 runtime smoke new field tests passed"

@@ -12,6 +12,10 @@ namespace {
 		"sam3.cpp",
 		"sam.cpp"
 	};
+	constexpr const char * kPromptLabels[] = {
+		"Point",
+		"Box"
+	};
 
 	std::string getEnvString(const std::string & name) {
 		const auto value = std::getenv(name.c_str());
@@ -91,6 +95,21 @@ namespace {
 			: normalizedPath;
 		auto result = ofSystemLoadDialog(title, false, startPath);
 		return result.bSuccess ? normalizeUserPath(result.getPath()) : "";
+	}
+
+	ofxGgmlSamBox ensureVisibleBox(ofxGgmlSamBox box) {
+		constexpr float minSize = 0.01f;
+		if (box.x1 - box.x0 < minSize) {
+			const float center = (box.x0 + box.x1) * 0.5f;
+			box.x0 = ofClamp(center - minSize * 0.5f, 0.0f, 1.0f - minSize);
+			box.x1 = box.x0 + minSize;
+		}
+		if (box.y1 - box.y0 < minSize) {
+			const float center = (box.y0 + box.y1) * 0.5f;
+			box.y0 = ofClamp(center - minSize * 0.5f, 0.0f, 1.0f - minSize);
+			box.y1 = box.y0 + minSize;
+		}
+		return box;
 	}
 }
 
@@ -189,7 +208,7 @@ void ofApp::setup() {
 		}
 	}
 
-	request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+	ensurePromptDefaults();
 	loadImage();
 }
 
@@ -221,11 +240,26 @@ void ofApp::draw() {
 			ofSetColor(0, 190, 255, 105);
 			maskTexture.draw(imageRect);
 		}
-		ofSetColor(request.points.front().positive ? ofColor::limeGreen : ofColor::red);
-		ofDrawCircle(
-			imageRect.x + request.points.front().x * imageRect.width,
-			imageRect.y + request.points.front().y * imageRect.height,
-			6.0f);
+		ensurePromptDefaults();
+		if (isBoxPromptSelected()) {
+			const auto & box = request.boxes.front();
+			ofNoFill();
+			ofSetLineWidth(3.0f);
+			ofSetColor(ofColor::limeGreen);
+			ofDrawRectangle(
+				imageRect.x + box.x0 * imageRect.width,
+				imageRect.y + box.y0 * imageRect.height,
+				(box.x1 - box.x0) * imageRect.width,
+				(box.y1 - box.y0) * imageRect.height);
+			ofSetLineWidth(1.0f);
+			ofFill();
+		} else {
+			ofSetColor(request.points.front().positive ? ofColor::limeGreen : ofColor::red);
+			ofDrawCircle(
+				imageRect.x + request.points.front().x * imageRect.width,
+				imageRect.y + request.points.front().y * imageRect.height,
+				6.0f);
+		}
 	} else {
 		ofSetColor(80);
 		ofDrawRectangle(imageRect);
@@ -257,6 +291,9 @@ void ofApp::draw() {
 				selectedBackendIndex = 0;
 			} else if (hasExtension(modelPath, { "bin" })) {
 				selectedBackendIndex = 1;
+				if (isBoxPromptSelected()) {
+					selectedPromptIndex = 0;
+				}
 			}
 			copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
 			setStatus("selected model: " + modelPath);
@@ -274,6 +311,11 @@ void ofApp::draw() {
 		}
 	}
 	if (ImGui::Combo("Backend", &selectedBackendIndex, kBackendLabels, IM_ARRAYSIZE(kBackendLabels))) {
+		if (selectedBackendIndex == 1 && isBoxPromptSelected()) {
+			selectedPromptIndex = 0;
+			ensurePromptDefaults();
+			setStatus("sam.cpp path is point-prompt-only", true);
+		}
 		if (!isModelPathCompatibleWithBackend(modelPath)) {
 			modelPath = findDefaultModelPath();
 			copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
@@ -282,6 +324,22 @@ void ofApp::draw() {
 			setStatus("backend selected: " + getBackendLabel() + "; no compatible model auto-detected", true);
 		} else {
 			setStatus("backend selected: " + getBackendLabel());
+		}
+	}
+	if (ImGui::Combo("Prompt", &selectedPromptIndex, kPromptLabels, IM_ARRAYSIZE(kPromptLabels))) {
+		ensurePromptDefaults();
+		if (isBoxPromptSelected()) {
+			selectedBackendIndex = 0;
+			if (!isModelPathCompatibleWithBackend(modelPath)) {
+				modelPath = findDefaultModelPath();
+				copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
+			}
+			setStatus("box prompt selected: sam3.cpp");
+		} else {
+			setStatus("point prompt selected");
+		}
+		if (autoRun) {
+			runSegmentation();
 		}
 	}
 	if (ImGui::Button("Load Image")) {
@@ -294,12 +352,24 @@ void ofApp::draw() {
 	ImGui::SameLine();
 	ImGui::Checkbox("Auto", &autoRun);
 
-	auto & point = request.points.front();
-	bool pointChanged = false;
-	pointChanged |= ImGui::SliderFloat("Point X", &point.x, 0.0f, 1.0f);
-	pointChanged |= ImGui::SliderFloat("Point Y", &point.y, 0.0f, 1.0f);
-	pointChanged |= ImGui::Checkbox("Positive", &point.positive);
-	if (pointChanged && autoRun) {
+	ensurePromptDefaults();
+	bool promptChanged = false;
+	if (isBoxPromptSelected()) {
+		auto & box = request.boxes.front();
+		promptChanged |= ImGui::SliderFloat("Box X0", &box.x0, 0.0f, 1.0f);
+		promptChanged |= ImGui::SliderFloat("Box Y0", &box.y0, 0.0f, 1.0f);
+		promptChanged |= ImGui::SliderFloat("Box X1", &box.x1, 0.0f, 1.0f);
+		promptChanged |= ImGui::SliderFloat("Box Y1", &box.y1, 0.0f, 1.0f);
+		if (promptChanged) {
+			box = ensureVisibleBox(ofxGgmlSamMakeBox(box.x0, box.y0, box.x1, box.y1, true));
+		}
+	} else {
+		auto & point = request.points.front();
+		promptChanged |= ImGui::SliderFloat("Point X", &point.x, 0.0f, 1.0f);
+		promptChanged |= ImGui::SliderFloat("Point Y", &point.y, 0.0f, 1.0f);
+		promptChanged |= ImGui::Checkbox("Positive", &point.positive);
+	}
+	if (promptChanged && autoRun) {
 		runSegmentation();
 	}
 
@@ -323,17 +393,40 @@ void ofApp::exit() {
 }
 
 void ofApp::mousePressed(int x, int y, int button) {
-	if (button != OF_MOUSE_BUTTON_LEFT || request.points.empty() || !imageLoaded) {
+	if (button != OF_MOUSE_BUTTON_LEFT || !imageLoaded) {
 		return;
 	}
 	const auto imageRect = getImageRect();
 	if (!imageRect.inside(x, y)) {
 		return;
 	}
-	request.points.front() = ofxGgmlSamMakePoint(
-		(static_cast<float>(x) - imageRect.x) / imageRect.width,
-		(static_cast<float>(y) - imageRect.y) / imageRect.height,
-		true);
+	ensurePromptDefaults();
+	const auto normalized = getNormalizedImagePoint(x, y);
+	if (isBoxPromptSelected()) {
+		draggingBox = true;
+		boxDragStart = normalized;
+		setBoxFromCorners(boxDragStart, normalized);
+	} else {
+		request.points.front() = ofxGgmlSamMakePoint(normalized.x, normalized.y, true);
+	}
+	if (autoRun && !isBoxPromptSelected()) {
+		runSegmentation();
+	}
+}
+
+void ofApp::mouseDragged(int x, int y, int button) {
+	if (button != OF_MOUSE_BUTTON_LEFT || !draggingBox || !imageLoaded || !isBoxPromptSelected()) {
+		return;
+	}
+	setBoxFromCorners(boxDragStart, getNormalizedImagePoint(x, y));
+}
+
+void ofApp::mouseReleased(int x, int y, int button) {
+	if (button != OF_MOUSE_BUTTON_LEFT || !draggingBox || !isBoxPromptSelected()) {
+		return;
+	}
+	draggingBox = false;
+	setBoxFromCorners(boxDragStart, getNormalizedImagePoint(x, y));
 	if (autoRun) {
 		runSegmentation();
 	}
@@ -410,11 +503,9 @@ void ofApp::loadGeneratedImage() {
 	image.update();
 	imageLoaded = true;
 	updateRequestImage();
-	if (request.points.empty()) {
-		request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
-	} else {
-		request.points.front() = ofxGgmlSamMakePoint(0.48f, 0.52f, true);
-	}
+	ensurePromptDefaults();
+	request.points.front() = ofxGgmlSamMakePoint(0.48f, 0.52f, true);
+	request.boxes.front() = ensureVisibleBox(ofxGgmlSamMakeBox(0.25f, 0.25f, 0.75f, 0.75f, true));
 }
 
 std::string ofApp::findDefaultModelPath() const {
@@ -498,10 +589,22 @@ void ofApp::runSegmentation() {
 	if (!ensureModelPath()) {
 		return;
 	}
+	ensurePromptDefaults();
+	if (isBoxPromptSelected() && selectedBackendIndex != 0) {
+		setStatus("box prompts require sam3.cpp", true);
+		return;
+	}
 	updateRequestImage();
 	request.modelPath = modelPath;
 	request.imagePath = imagePath.empty() ? "generated-fallback" : imagePath;
 	request.external.executablePath.clear();
+	if (isBoxPromptSelected()) {
+		request.points.clear();
+		request.boxes.resize(1);
+	} else {
+		request.boxes.clear();
+		request.points.resize(1);
+	}
 
 	SegmentationJob job;
 	job.request = request;
@@ -516,6 +619,32 @@ void ofApp::runSegmentation() {
 	}
 	latestSubmittedJobId = submittedJobId;
 	setStatus("segmentation running");
+}
+
+void ofApp::ensurePromptDefaults() {
+	if (request.points.empty()) {
+		request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+	}
+	if (request.boxes.empty()) {
+		request.boxes.push_back(ensureVisibleBox(ofxGgmlSamMakeBox(0.25f, 0.25f, 0.75f, 0.75f, true)));
+	}
+}
+
+bool ofApp::isBoxPromptSelected() const {
+	return selectedPromptIndex == 1;
+}
+
+ofVec2f ofApp::getNormalizedImagePoint(int x, int y) const {
+	const auto imageRect = getImageRect();
+	return {
+		ofClamp((static_cast<float>(x) - imageRect.x) / imageRect.width, 0.0f, 1.0f),
+		ofClamp((static_cast<float>(y) - imageRect.y) / imageRect.height, 0.0f, 1.0f)
+	};
+}
+
+void ofApp::setBoxFromCorners(const ofVec2f & a, const ofVec2f & b) {
+	ensurePromptDefaults();
+	request.boxes.front() = ensureVisibleBox(ofxGgmlSamMakeBox(a.x, a.y, b.x, b.y, true));
 }
 
 void ofApp::updateRequestImage() {

@@ -41,6 +41,19 @@ int main() {
 	OFXGGMLSAM_EXPECT(pixelPoint.x == 0.5f);
 	OFXGGMLSAM_EXPECT(pixelPoint.y == 0.5f);
 
+	const auto clampedBox = ofxGgmlSamMakeBox(0.9f, -1.0f, 0.1f, 2.0f, false);
+	OFXGGMLSAM_EXPECT(clampedBox.x0 == 0.1f);
+	OFXGGMLSAM_EXPECT(clampedBox.y0 == 0.0f);
+	OFXGGMLSAM_EXPECT(clampedBox.x1 == 0.9f);
+	OFXGGMLSAM_EXPECT(clampedBox.y1 == 1.0f);
+	OFXGGMLSAM_EXPECT(!clampedBox.positive);
+
+	const auto pixelBox = ofxGgmlSamMakeBoxFromPixels(1.0f, 1.0f, 3.0f, 3.0f, 5, 5);
+	OFXGGMLSAM_EXPECT(pixelBox.x0 == 0.25f);
+	OFXGGMLSAM_EXPECT(pixelBox.y0 == 0.25f);
+	OFXGGMLSAM_EXPECT(pixelBox.x1 == 0.75f);
+	OFXGGMLSAM_EXPECT(pixelBox.y1 == 0.75f);
+
 	ofxGgmlSamInference inference;
 	OFXGGMLSAM_EXPECT(!inference.isConfigured());
 	OFXGGMLSAM_EXPECT(inference.getBackendName() == "SamBridge");
@@ -81,7 +94,9 @@ int main() {
 		[&callCount](const ofxGgmlSamRequest & request) {
 			++callCount;
 			ofxGgmlSamResult result;
-			result.success = request.image.isAllocated() && !request.points.empty();
+			result.success =
+				request.image.isAllocated() &&
+				(!request.points.empty() || !request.boxes.empty());
 			ofxGgmlSamMask mask;
 			mask.width = 1;
 			mask.height = 1;
@@ -108,6 +123,32 @@ int main() {
 	OFXGGMLSAM_EXPECT(pointResult.isOk());
 	OFXGGMLSAM_EXPECT(callCount == 2);
 
+	const auto boxResult = inference.segmentBox(
+		image,
+		ofxGgmlSamMakeBox(0.25f, 0.25f, 0.75f, 0.75f, true));
+	OFXGGMLSAM_EXPECT(boxResult.isOk());
+	OFXGGMLSAM_EXPECT(callCount == 3);
+
+	auto secondRequest = request;
+	secondRequest.imagePath = "second-image.ppm";
+	secondRequest.points.front() = ofxGgmlSamMakePoint(0.25f, 0.25f, true);
+	const auto batchResults = inference.segmentBatch({ request, secondRequest });
+	OFXGGMLSAM_EXPECT(batchResults.size() == 2);
+	OFXGGMLSAM_EXPECT(batchResults[0].isOk());
+	OFXGGMLSAM_EXPECT(batchResults[1].isOk());
+	OFXGGMLSAM_EXPECT(batchResults[0].backendName == "FakeSam");
+	OFXGGMLSAM_EXPECT(batchResults[1].backendName == "FakeSam");
+	OFXGGMLSAM_EXPECT(batchResults[1].imagePath == "second-image.ppm");
+	OFXGGMLSAM_EXPECT(callCount == 5);
+
+	ofxGgmlSamRequest invalidBatchRequest;
+	invalidBatchRequest.image = image;
+	const auto mixedBatchResults = inference.segmentBatch({ request, invalidBatchRequest });
+	OFXGGMLSAM_EXPECT(mixedBatchResults.size() == 2);
+	OFXGGMLSAM_EXPECT(mixedBatchResults[0].isOk());
+	OFXGGMLSAM_EXPECT(mixedBatchResults[1].isError());
+	OFXGGMLSAM_EXPECT(callCount == 6);
+
 	inference.setBackend(nullptr);
 	OFXGGMLSAM_EXPECT(!inference.isConfigured());
 	OFXGGMLSAM_EXPECT(inference.segment(request).isError());
@@ -132,6 +173,23 @@ int main() {
 	invalidRequest.image = image;
 	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(invalidRequest).isError());
 	OFXGGMLSAM_EXPECT(inference.segment(invalidRequest).isError());
+
+	ofxGgmlSamRequest invalidBoxRequest;
+	invalidBoxRequest.image = image;
+	invalidBoxRequest.boxes.push_back({ 0.75f, 0.75f, 0.25f, 0.25f, true });
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(invalidBoxRequest).isError());
+
+	ofxGgmlSamRequest refinementRequest = request;
+	refinementRequest.refinementMask.width = image.width;
+	refinementRequest.refinementMask.height = image.height;
+	refinementRequest.refinementMask.values.assign(
+		static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height),
+		0.0f);
+	OFXGGMLSAM_EXPECT(refinementRequest.refinementMask.isAllocated());
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(refinementRequest).isOk());
+	refinementRequest.refinementMask.values.pop_back();
+	OFXGGMLSAM_EXPECT(!refinementRequest.refinementMask.isAllocated());
+	OFXGGMLSAM_EXPECT(ofxGgmlSamValidateRequest(refinementRequest).isError());
 
 	return EXIT_SUCCESS;
 }

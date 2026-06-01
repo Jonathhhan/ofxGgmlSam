@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
@@ -31,6 +32,11 @@ struct Options {
 	int imageSize = 256;
 	float pointX = 0.5f;
 	float pointY = 0.5f;
+	float boxX0 = 0.25f;
+	float boxY0 = 0.25f;
+	float boxX1 = 0.75f;
+	float boxY1 = 0.75f;
+	bool useBox = false;
 	bool multimask = false;
 	bool json = false;
 	bool summaryOnly = false;
@@ -42,6 +48,20 @@ struct Timings {
 	double encodeMs = 0.0;
 	double segmentMs = 0.0;
 	double totalMs = 0.0;
+};
+
+struct MaskStats {
+	int width = 0;
+	int height = 0;
+	size_t activePixels = 0;
+	double activeRatio = 0.0;
+	double meanValue = 0.0;
+	double promptValue = 0.0;
+	double centerValue = 0.0;
+	int boundsX = -1;
+	int boundsY = -1;
+	int boundsWidth = 0;
+	int boundsHeight = 0;
 };
 
 class StdoutSilencer {
@@ -154,6 +174,20 @@ Options parseOptions(int argc, char ** argv) {
 			options.pointX = parseFloat(requireValue(i, argc, argv, arg), arg);
 		} else if (arg == "--point-y") {
 			options.pointY = parseFloat(requireValue(i, argc, argv, arg), arg);
+		} else if (arg == "--box") {
+			options.useBox = true;
+		} else if (arg == "--box-x0") {
+			options.boxX0 = parseFloat(requireValue(i, argc, argv, arg), arg);
+			options.useBox = true;
+		} else if (arg == "--box-y0") {
+			options.boxY0 = parseFloat(requireValue(i, argc, argv, arg), arg);
+			options.useBox = true;
+		} else if (arg == "--box-x1") {
+			options.boxX1 = parseFloat(requireValue(i, argc, argv, arg), arg);
+			options.useBox = true;
+		} else if (arg == "--box-y1") {
+			options.boxY1 = parseFloat(requireValue(i, argc, argv, arg), arg);
+			options.useBox = true;
 		} else if (arg == "--multimask") {
 			options.multimask = true;
 		} else if (arg == "--json") {
@@ -164,7 +198,7 @@ Options parseOptions(int argc, char ** argv) {
 			options.backend = "cuda";
 		} else if (arg == "--help" || arg == "-h") {
 			throw std::runtime_error(
-				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--image fixture.ppm] [--json] [--summary-only]");
+				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--image fixture.ppm] [--box] [--json] [--summary-only]");
 		} else {
 			throw std::runtime_error("unknown argument: " + arg);
 		}
@@ -180,6 +214,19 @@ Options parseOptions(int argc, char ** argv) {
 	}
 	options.pointX = std::clamp(options.pointX, 0.0f, 1.0f);
 	options.pointY = std::clamp(options.pointY, 0.0f, 1.0f);
+	options.boxX0 = std::clamp(options.boxX0, 0.0f, 1.0f);
+	options.boxY0 = std::clamp(options.boxY0, 0.0f, 1.0f);
+	options.boxX1 = std::clamp(options.boxX1, 0.0f, 1.0f);
+	options.boxY1 = std::clamp(options.boxY1, 0.0f, 1.0f);
+	if (options.boxX0 > options.boxX1) {
+		std::swap(options.boxX0, options.boxX1);
+	}
+	if (options.boxY0 > options.boxY1) {
+		std::swap(options.boxY0, options.boxY1);
+	}
+	if (options.useBox && (options.boxX0 == options.boxX1 || options.boxY0 == options.boxY1)) {
+		throw std::runtime_error("box prompt must describe a positive-area rectangle");
+	}
 	return options;
 }
 
@@ -292,6 +339,91 @@ std::string jsonEscape(const std::string & value) {
 	return out.str();
 }
 
+template <typename Value>
+double normalizedMaskValue(Value value) {
+	const double numericValue = static_cast<double>(value);
+	const double normalized = numericValue > 1.0 ? numericValue / 255.0 : numericValue;
+	return std::clamp(normalized, 0.0, 1.0);
+}
+
+template <typename Values>
+MaskStats computeMaskStats(
+	const Values & values,
+	int width,
+	int height,
+	float pointX,
+	float pointY) {
+	MaskStats stats;
+	stats.width = width;
+	stats.height = height;
+	if (width <= 0 || height <= 0 || values.empty()) {
+		return stats;
+	}
+
+	const size_t expectedSize = static_cast<size_t>(width) * static_cast<size_t>(height);
+	const size_t usableSize = std::min(expectedSize, values.size());
+	const int promptX = std::clamp(
+		static_cast<int>(std::round(pointX * static_cast<float>(width - 1))),
+		0,
+		std::max(0, width - 1));
+	const int promptY = std::clamp(
+		static_cast<int>(std::round(pointY * static_cast<float>(height - 1))),
+		0,
+		std::max(0, height - 1));
+	const int centerX = std::max(0, width / 2);
+	const int centerY = std::max(0, height / 2);
+
+	int minX = width;
+	int minY = height;
+	int maxX = -1;
+	int maxY = -1;
+	double sum = 0.0;
+	for (size_t i = 0; i < usableSize; ++i) {
+		const double value = normalizedMaskValue(values[i]);
+		sum += value;
+		if (value > 0.5) {
+			const int x = static_cast<int>(i % static_cast<size_t>(width));
+			const int y = static_cast<int>(i / static_cast<size_t>(width));
+			++stats.activePixels;
+			minX = std::min(minX, x);
+			minY = std::min(minY, y);
+			maxX = std::max(maxX, x);
+			maxY = std::max(maxY, y);
+		}
+	}
+
+	stats.meanValue = sum / static_cast<double>(usableSize);
+	stats.activeRatio = static_cast<double>(stats.activePixels) / static_cast<double>(usableSize);
+	const size_t promptIndex =
+		static_cast<size_t>(promptY) * static_cast<size_t>(width) + static_cast<size_t>(promptX);
+	const size_t centerIndex =
+		static_cast<size_t>(centerY) * static_cast<size_t>(width) + static_cast<size_t>(centerX);
+	if (promptIndex < usableSize) {
+		stats.promptValue = normalizedMaskValue(values[promptIndex]);
+	}
+	if (centerIndex < usableSize) {
+		stats.centerValue = normalizedMaskValue(values[centerIndex]);
+	}
+	if (stats.activePixels > 0) {
+		stats.boundsX = minX;
+		stats.boundsY = minY;
+		stats.boundsWidth = maxX - minX + 1;
+		stats.boundsHeight = maxY - minY + 1;
+	}
+	return stats;
+}
+
+MaskStats computeFirstMaskStats(
+	const sam3_result & result,
+	float pointX,
+	float pointY) {
+	if (result.detections.empty()) {
+		return {};
+	}
+	const auto & mask = result.detections.front().mask;
+	return computeMaskStats(mask.data, mask.width, mask.height, pointX, pointY);
+}
+
 void writeTextSummary(
 	const Options & options,
 	const Timings & timings,
@@ -321,6 +453,9 @@ void writeJson(
 	const std::string & error = "") {
 	const bool passed = error.empty();
 	const size_t maskCount = passed ? result.detections.size() : 0u;
+	const MaskStats firstMaskStats = passed
+		? computeFirstMaskStats(result, options.pointX, options.pointY)
+		: MaskStats {};
 	std::cout << std::fixed << std::setprecision(3);
 	std::cout << "{\n";
 	std::cout << "  \"SummaryOnly\": " << (options.summaryOnly ? "true" : "false") << ",\n";
@@ -328,12 +463,25 @@ void writeJson(
 	std::cout << "    \"Passed\": " << (passed ? "true" : "false") << ",\n";
 	std::cout << "    \"InferenceChecked\": " << (passed ? "true" : "false") << ",\n";
 	std::cout << "    \"SmokeKind\": \"model-backed-sam3-point-segmentation\",\n";
+	std::cout << "    \"PromptKind\": \"" << (options.useBox ? "box" : "point") << "\",\n";
 	std::cout << "    \"Backend\": \"" << jsonEscape(options.backend) << "\",\n";
 	std::cout << "    \"ModelPath\": \"" << jsonEscape(options.modelPath) << "\",\n";
 	std::cout << "    \"ImagePath\": \"" << jsonEscape(options.imagePath) << "\",\n";
 	std::cout << "    \"Threads\": " << options.threads << ",\n";
 	std::cout << "    \"ImageSize\": " << options.imageSize << ",\n";
+	std::cout << "    \"BoxPrompt\": " << (options.useBox ? "true" : "false") << ",\n";
+	std::cout << "    \"BoxX0\": " << options.boxX0 << ",\n";
+	std::cout << "    \"BoxY0\": " << options.boxY0 << ",\n";
+	std::cout << "    \"BoxX1\": " << options.boxX1 << ",\n";
+	std::cout << "    \"BoxY1\": " << options.boxY1 << ",\n";
 	std::cout << "    \"MaskCount\": " << maskCount << ",\n";
+	std::cout << "    \"FirstMaskWidth\": " << firstMaskStats.width << ",\n";
+	std::cout << "    \"FirstMaskHeight\": " << firstMaskStats.height << ",\n";
+	std::cout << "    \"FirstMaskActivePixels\": " << firstMaskStats.activePixels << ",\n";
+	std::cout << "    \"FirstMaskActiveRatio\": " << firstMaskStats.activeRatio << ",\n";
+	std::cout << "    \"FirstMaskMeanValue\": " << firstMaskStats.meanValue << ",\n";
+	std::cout << "    \"FirstMaskPromptValue\": " << firstMaskStats.promptValue << ",\n";
+	std::cout << "    \"FirstMaskCenterValue\": " << firstMaskStats.centerValue << ",\n";
 	std::cout << "    \"LoadMs\": " << timings.loadMs << ",\n";
 	std::cout << "    \"StateMs\": " << timings.stateMs << ",\n";
 	std::cout << "    \"EncodeMs\": " << timings.encodeMs << ",\n";
@@ -346,11 +494,22 @@ void writeJson(
 		for (size_t i = 0; i < result.detections.size(); ++i) {
 			const auto & detection = result.detections[i];
 			const auto & mask = detection.mask;
+			const MaskStats maskStats =
+				computeMaskStats(mask.data, mask.width, mask.height, options.pointX, options.pointY);
 			std::cout << "    {";
 			std::cout << "\"Width\": " << mask.width << ", ";
 			std::cout << "\"Height\": " << mask.height << ", ";
 			std::cout << "\"IouScore\": " << mask.iou_score << ", ";
-			std::cout << "\"ObjScore\": " << detection.score;
+			std::cout << "\"ObjScore\": " << detection.score << ", ";
+			std::cout << "\"ActivePixels\": " << maskStats.activePixels << ", ";
+			std::cout << "\"ActiveRatio\": " << maskStats.activeRatio << ", ";
+			std::cout << "\"MeanValue\": " << maskStats.meanValue << ", ";
+			std::cout << "\"PromptValue\": " << maskStats.promptValue << ", ";
+			std::cout << "\"CenterValue\": " << maskStats.centerValue << ", ";
+			std::cout << "\"BoundsX\": " << maskStats.boundsX << ", ";
+			std::cout << "\"BoundsY\": " << maskStats.boundsY << ", ";
+			std::cout << "\"BoundsWidth\": " << maskStats.boundsWidth << ", ";
+			std::cout << "\"BoundsHeight\": " << maskStats.boundsHeight;
 			std::cout << "}";
 			if (i + 1 < result.detections.size()) {
 				std::cout << ",";
@@ -414,10 +573,20 @@ int main(int argc, char ** argv) {
 
 		sam3_pvs_params pvs;
 		pvs.multimask = options.multimask;
-		pvs.pos_points.push_back({
-			options.pointX * static_cast<float>(image.width),
-			options.pointY * static_cast<float>(image.height)
-		});
+		if (options.useBox) {
+			pvs.use_box = true;
+			pvs.box = {
+				options.boxX0 * static_cast<float>(image.width),
+				options.boxY0 * static_cast<float>(image.height),
+				options.boxX1 * static_cast<float>(image.width),
+				options.boxY1 * static_cast<float>(image.height)
+			};
+		} else {
+			pvs.pos_points.push_back({
+				options.pointX * static_cast<float>(image.width),
+				options.pointY * static_cast<float>(image.height)
+			});
+		}
 
 		const auto segmentStart = Clock::now();
 		result = sam3_segment_pvs(*state, *model, pvs);

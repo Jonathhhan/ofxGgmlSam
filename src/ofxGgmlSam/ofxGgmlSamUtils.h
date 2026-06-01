@@ -35,6 +35,22 @@ ofxGgmlSamPoint ofxGgmlSamMakePointFromPixels(
 	int height,
 	bool positive = true);
 
+ofxGgmlSamBox ofxGgmlSamMakeBox(
+	float normalizedX0,
+	float normalizedY0,
+	float normalizedX1,
+	float normalizedY1,
+	bool positive = true);
+
+ofxGgmlSamBox ofxGgmlSamMakeBoxFromPixels(
+	float x0,
+	float y0,
+	float x1,
+	float y1,
+	int width,
+	int height,
+	bool positive = true);
+
 ofxGgmlSamResult ofxGgmlSamMakeError(const std::string & message);
 
 ofxGgmlSamValidation ofxGgmlSamValidateImage(

@@ -89,6 +89,16 @@ ofxGgmlSamResult ofxGgmlSamInference::segment(
 	return backend->segment(request);
 }
 
+std::vector<ofxGgmlSamResult> ofxGgmlSamInference::segmentBatch(
+	const std::vector<ofxGgmlSamRequest> & requests) const {
+	std::vector<ofxGgmlSamResult> results;
+	results.reserve(requests.size());
+	for (const auto & request : requests) {
+		results.push_back(segment(request));
+	}
+	return results;
+}
+
 ofxGgmlSamResult ofxGgmlSamInference::segmentPoint(
 	const ofxGgmlSamImage & image,
 	const ofxGgmlSamPoint & point,
@@ -97,5 +107,16 @@ ofxGgmlSamResult ofxGgmlSamInference::segmentPoint(
 	request.modelPath = modelPath;
 	request.image = image;
 	request.points.push_back(point);
+	return segment(request);
+}
+
+ofxGgmlSamResult ofxGgmlSamInference::segmentBox(
+	const ofxGgmlSamImage & image,
+	const ofxGgmlSamBox & box,
+	const std::string & modelPath) const {
+	ofxGgmlSamRequest request;
+	request.modelPath = modelPath;
+	request.image = image;
+	request.boxes.push_back(box);
 	return segment(request);
 }

@@ -15,6 +15,8 @@ public:
 	void draw() override;
 	void exit() override;
 	void mousePressed(int x, int y, int button) override;
+	void mouseDragged(int x, int y, int button) override;
+	void mouseReleased(int x, int y, int button) override;
 
 private:
 	struct SegmentationJob {
@@ -59,6 +61,10 @@ private:
 	bool isModelPathCompatibleWithBackend(const std::string & path) const;
 	bool ensureModelPath();
 	void runSegmentation();
+	void ensurePromptDefaults();
+	bool isBoxPromptSelected() const;
+	ofVec2f getNormalizedImagePoint(int x, int y) const;
+	void setBoxFromCorners(const ofVec2f & a, const ofVec2f & b);
 	void updateRequestImage();
 	void updateMaskTexture();
 	void setStatus(const std::string & message, bool warning = false);
@@ -74,8 +80,11 @@ private:
 	std::string imagePath;
 	std::string status;
 	int selectedBackendIndex = 0;
+	int selectedPromptIndex = 0;
 	std::uint64_t nextJobId = 1;
 	std::uint64_t latestSubmittedJobId = 0;
+	ofVec2f boxDragStart{ 0.25f, 0.25f };
 	bool imageLoaded = false;
 	bool autoRun = false;
+	bool draggingBox = false;
 };

@@ -30,10 +30,14 @@ Done:
 Done:
 
 - redistributable fixture image workflow for the SAM3 runtime smoke
-
-Next:
-
 - expand runtime verification from the SAM3 smoke to fixture-backed output checks
+- normalized box prompt helpers and external adapter box prompt contract
+- in-process `sam3.cpp` positive box prompt support with runtime smoke coverage
+- point example positive box prompt workflow for `sam3.cpp`
+- external adapter mask refinement input contract
+- sequential bridge batch request API
+- mock-backed external file/directory batch workflow
+- reproducible redistributable fixture generation script
 
 ## Rules
 
@@ -46,8 +50,7 @@ Next:
 
 ## Later
 
-- box prompts
-- mask refinement
-- batch image workflows
+- box prompts in the `sam.cpp` adapter
+- mask refinement in in-process adapters and example UI
+- example UI for batch/image-set workflows
 - broader SAM2/SAM3-specific adapter coverage
-- sample image generation or redistributable test image

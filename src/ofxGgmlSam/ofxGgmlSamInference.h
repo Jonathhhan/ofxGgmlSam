@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 class ofxGgmlSamBackend {
 public:
@@ -50,9 +51,15 @@ public:
 	std::string getBackendName() const;
 
 	ofxGgmlSamResult segment(const ofxGgmlSamRequest & request) const;
+	std::vector<ofxGgmlSamResult> segmentBatch(
+		const std::vector<ofxGgmlSamRequest> & requests) const;
 	ofxGgmlSamResult segmentPoint(
 		const ofxGgmlSamImage & image,
 		const ofxGgmlSamPoint & point,
+		const std::string & modelPath = "") const;
+	ofxGgmlSamResult segmentBox(
+		const ofxGgmlSamImage & image,
+		const ofxGgmlSamBox & box,
 		const std::string & modelPath = "") const;
 
 private:

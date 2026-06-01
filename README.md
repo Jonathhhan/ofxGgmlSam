@@ -25,6 +25,7 @@ Family map: https://jonathhhan.github.io/ofxGgmlCore/
 - mask generation and preview workflow
 - CPU/CUDA/Metal runtime selection
 - model-backed runtime smoke evidence
+- mock-backed external batch workflow for local PPM image sets
 
 The first public API is a small bridge backend:
 
@@ -34,10 +35,16 @@ The first public API is a small bridge backend:
 - `ofxGgmlSamExternalBackend`
 - optional `ofxGgmlSamCppAdapters` and `ofxGgmlSam3Adapters`
 - `ofxGgmlSamRequest` and `ofxGgmlSamResult`
-- normalized point and request validation helpers
+- `segment`, `segmentPoint`, `segmentBox`, and sequential `segmentBatch`
+- normalized point, box, and request validation helpers
 
 Concrete SAM/SAM2/SAM3 adapters should plug into that bridge instead of
 expanding core `ofxGgmlCore`.
+
+`segmentBatch` preserves input order and runs each request through the same
+validation and backend path as `segment`. It is intentionally sequential so
+backend-specific batching, threading, or embedding reuse can be added later
+without changing the first addon-level contract.
 
 For segmentation-lane planning, prompt boundaries, and adapter artifact rules,
 see [docs/SAM_WORKFLOWS.md](docs/SAM_WORKFLOWS.md).
@@ -81,8 +88,11 @@ does not already expose SAM3's CUDA window partition ops. Override
 outside `libs/sam.cpp/source` or `libs/sam3.cpp/source`.
 
 The `sam3.cpp` adapter caches encoded image state per loaded runtime. Changing
-only point prompts reuses the cached image embedding and runs the prompt decoder
-directly; changing the image invalidates the cache and triggers a fresh encode.
+only point or box prompts reuses the cached image embedding and runs the prompt
+decoder directly; changing the image invalidates the cache and triggers a fresh
+encode. The in-process `sam3.cpp` PVS path supports points plus one positive
+box prompt per request. The `sam.cpp` in-process path remains point-prompt-only;
+use the external adapter for box prompts in that lane.
 
 List local SAM model candidates before running the example or runtime smoke:
 
@@ -107,17 +117,38 @@ scripts\run-sam3-runtime-smoke.bat -DryRun
 When `OFXGGML_SAM_MODEL` is set, or a `.ggml` SAM3/SAM2/EdgeTAM model exists in
 `ofxGgmlSamPointExample\bin\data\models`, the smoke builds a small console tool,
 loads the model, encodes a synthetic RGB image, runs one point prompt, and
-reports timings without writing masks or generated media:
+reports timings and first-mask shape statistics without writing masks or
+generated media:
 
 ```powershell
 scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly
 ```
 
+Verify the SAM3 in-process box prompt path with:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -BoxVerify
+```
+
 For deterministic fixture planning, pass the committed hand-authored PPM image:
 
 ```powershell
 scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm
+```
+
+Regenerate and verify the redistributable fixture source with:
+
+```powershell
+scripts\generate-sam-fixtures.bat -Clean -Verify
+```
+
+To turn that fixture into a model-backed output check, add `-FixtureVerify`.
+The check uses the returned first-mask statistics to require a valid,
+non-empty, non-saturated mask that covers the positive prompt/fixture center:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -Backend cpu -Image tests\fixtures\sam-point-square.ppm -Json -SummaryOnly -FixtureVerify
 ```
 
 Verify that contract without a real model by building the mock adapter:
@@ -127,7 +158,8 @@ scripts\test-external-adapter-contract.bat
 ```
 
 The mock executable accepts the same flags as the external backend and writes a
-synthetic PGM mask. Real SAM runners should implement the same minimum CLI:
+synthetic PGM mask. Real SAM runners should implement the same minimum CLI for
+point prompts:
 
 ```text
 sam-runner --model model.gguf --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive
@@ -141,6 +173,39 @@ sam-runner --image input.ppm --output mask.pgm --point-x 0.5 --point-y 0.5 --poi
 
 Coordinates are normalized image coordinates in `[0, 1]`. The adapter must
 write one grayscale PGM mask with the same width and height as the input image.
+Box prompts use normalized corner coordinates and are passed by repeating the
+five box flags in order:
+
+```text
+sam-runner --image input.ppm --output mask.pgm --box-x0 0.25 --box-y0 0.25 --box-x1 0.75 --box-y1 0.75 --box-label positive
+```
+
+Point and box prompts may be combined. Box coordinates must describe a
+positive-area rectangle with `x0 < x1` and `y0 < y1`.
+Mask refinement is supported at the external adapter boundary. When
+`ofxGgmlSamRequest::refinementMask` is allocated, the backend writes it as a
+temporary PGM and passes it with `--mask-input`:
+
+```text
+sam-runner --image input.ppm --mask-input prior-mask.pgm --output mask.pgm --point-x 0.5 --point-y 0.5 --point-label positive
+```
+
+The refinement mask must match the request image dimensions. In-process
+`sam.cpp` and `sam3.cpp` refinement-mask wiring is intentionally left disabled
+until their public runtime APIs expose a stable mask-input contract.
+
+For file-list or directory batch smoke testing, use:
+
+```powershell
+scripts\test-external-batch.bat
+```
+
+That script builds `tools\ofxGgmlSamBatchExternal`, builds the mock external
+adapter, copies the redistributable PPM fixture into a temporary input
+directory, runs `segmentBatch`, and verifies that ordered output masks were
+written. The batch tool accepts repeated `--input` paths or one `--input-dir`
+of `.ppm`/`.pnm` files, plus `--adapter`, `--output-dir`, point flags, optional
+box flags, and `--json`.
 
 ## Status
 
@@ -185,6 +250,7 @@ On macOS/Linux:
 - choose image path
 - switch between `sam3.cpp` and `sam.cpp`
 - place one positive point
+- switch to a positive box prompt for `sam3.cpp`
 - run segmentation
 - preview mask overlay
 - report clear missing-model or missing-backend states

@@ -13,7 +13,10 @@ param(
 	[switch] $DryRun,
 	[switch] $Json,
 	[switch] $SummaryOnly,
-	[switch] $CacheVerify
+	[switch] $CacheVerify,
+	[switch] $FixtureVerify,
+	[switch] $BoxPrompt,
+	[switch] $BoxVerify
 )
 
 $ErrorActionPreference = "Stop"
@@ -169,6 +172,115 @@ function Get-ModelFamilyHint {
 	return "unknown"
 }
 
+function Get-RequiredNumber {
+	param([object] $Object, [string] $Name)
+	$property = $Object.PSObject.Properties[$Name]
+	if ($null -eq $property -or $null -eq $property.Value) {
+		throw "missing numeric field: $Name"
+	}
+	$value = [double] $property.Value
+	if ([double]::IsNaN($value) -or [double]::IsInfinity($value)) {
+		throw "non-finite numeric field: $Name"
+	}
+	return $value
+}
+
+function Test-FixtureSmokeResult {
+	param([object] $Result, [string] $ImagePath)
+	if ($null -eq $Result -or $null -eq $Result.Summary) {
+		throw "fixture output check requires parsed SAM3 smoke JSON"
+	}
+	if ([string]::IsNullOrWhiteSpace($ImagePath)) {
+		throw "fixture output check requires -Image tests\fixtures\sam-point-square.ppm"
+	}
+	if ([System.IO.Path]::GetFileName($ImagePath) -ne "sam-point-square.ppm") {
+		throw "fixture output check only supports sam-point-square.ppm"
+	}
+
+	$summary = $Result.Summary
+	if (-not $summary.Passed -or -not $summary.InferenceChecked) {
+		throw "fixture output check requires a passing inference result"
+	}
+
+	$maskCount = Get-RequiredNumber -Object $summary -Name "MaskCount"
+	$maskWidth = Get-RequiredNumber -Object $summary -Name "FirstMaskWidth"
+	$maskHeight = Get-RequiredNumber -Object $summary -Name "FirstMaskHeight"
+	$activePixels = Get-RequiredNumber -Object $summary -Name "FirstMaskActivePixels"
+	$activeRatio = Get-RequiredNumber -Object $summary -Name "FirstMaskActiveRatio"
+	$meanValue = Get-RequiredNumber -Object $summary -Name "FirstMaskMeanValue"
+	$promptValue = Get-RequiredNumber -Object $summary -Name "FirstMaskPromptValue"
+	$centerValue = Get-RequiredNumber -Object $summary -Name "FirstMaskCenterValue"
+
+	if ($maskCount -lt 1) { throw "fixture output check expected at least one mask" }
+	if ($maskWidth -lt 1 -or $maskHeight -lt 1) { throw "fixture output check received an invalid first-mask size" }
+	if ($activePixels -lt 1) { throw "fixture output check expected active pixels in the first mask" }
+	if ($activeRatio -le 0.0 -or $activeRatio -gt 0.98) {
+		throw "fixture output check expected a non-empty, non-saturated first mask; active ratio was $activeRatio"
+	}
+	if ($meanValue -le 0.0 -or $meanValue -gt 1.0) {
+		throw "fixture output check expected first-mask mean in (0, 1]; mean was $meanValue"
+	}
+	if ($promptValue -le 0.0) {
+		throw "fixture output check expected the positive prompt pixel to be covered by the first mask"
+	}
+	if ($centerValue -le 0.0) {
+		throw "fixture output check expected the fixture center to be covered by the first mask"
+	}
+
+	return [ordered] @{
+		Checked = $true
+		Image = $ImagePath
+		MaskCount = [int] $maskCount
+		FirstMaskWidth = [int] $maskWidth
+		FirstMaskHeight = [int] $maskHeight
+		FirstMaskActivePixels = [int] $activePixels
+		FirstMaskActiveRatio = [math]::Round($activeRatio, 6)
+		FirstMaskMeanValue = [math]::Round($meanValue, 6)
+		FirstMaskPromptValue = [math]::Round($promptValue, 6)
+		FirstMaskCenterValue = [math]::Round($centerValue, 6)
+	}
+}
+
+function Test-BoxSmokeResult {
+	param([object] $Result)
+	if ($null -eq $Result -or $null -eq $Result.Summary) {
+		throw "box output check requires parsed SAM3 smoke JSON"
+	}
+	$summary = $Result.Summary
+	if (-not $summary.Passed -or -not $summary.InferenceChecked) {
+		throw "box output check requires a passing inference result"
+	}
+	if ($summary.PromptKind -ne "box" -or -not $summary.BoxPrompt) {
+		throw "box output check expected a box-prompt smoke result"
+	}
+
+	$maskCount = Get-RequiredNumber -Object $summary -Name "MaskCount"
+	$maskWidth = Get-RequiredNumber -Object $summary -Name "FirstMaskWidth"
+	$maskHeight = Get-RequiredNumber -Object $summary -Name "FirstMaskHeight"
+	$activePixels = Get-RequiredNumber -Object $summary -Name "FirstMaskActivePixels"
+	$activeRatio = Get-RequiredNumber -Object $summary -Name "FirstMaskActiveRatio"
+	$centerValue = Get-RequiredNumber -Object $summary -Name "FirstMaskCenterValue"
+	if ($maskCount -lt 1) { throw "box output check expected at least one mask" }
+	if ($maskWidth -lt 1 -or $maskHeight -lt 1) { throw "box output check received an invalid first-mask size" }
+	if ($activePixels -lt 1) { throw "box output check expected active pixels in the first mask" }
+	if ($activeRatio -le 0.0 -or $activeRatio -gt 0.98) {
+		throw "box output check expected a non-empty, non-saturated first mask; active ratio was $activeRatio"
+	}
+	if ($centerValue -le 0.0) {
+		throw "box output check expected the default box center to be covered by the first mask"
+	}
+
+	return [ordered] @{
+		Checked = $true
+		MaskCount = [int] $maskCount
+		FirstMaskWidth = [int] $maskWidth
+		FirstMaskHeight = [int] $maskHeight
+		FirstMaskActivePixels = [int] $activePixels
+		FirstMaskActiveRatio = [math]::Round($activeRatio, 6)
+		FirstMaskCenterValue = [math]::Round($centerValue, 6)
+	}
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Resolve-Path (Join-Path $scriptRoot "..")
 $toolDir = Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke"
@@ -198,11 +310,18 @@ $plan = @{
 	SmokeKind = "model-backed-sam3-point-segmentation"
 	InferenceCheck = "dry-run"
 	InferenceChecked = $false
+	FixtureOutputCheck = "sam-point-square prompt-mask invariants"
+	FixtureChecked = $false
+	FixtureVerify = $FixtureVerify.IsPresent
+	BoxPrompt = $BoxPrompt.IsPresent -or $BoxVerify.IsPresent
+	BoxVerify = $BoxVerify.IsPresent
 	FailureCategory = "none"
 	NextCommands = @(
 		"scripts\run-sam3-runtime-smoke.bat -DryRun",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly",
+		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -BoxVerify",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly",
+		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Image tests\fixtures\sam-point-square.ppm -Json -SummaryOnly -FixtureVerify",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json",
 		"scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json"
 	)
@@ -229,6 +348,12 @@ if ($DryRun) {
 
 if ([string]::IsNullOrWhiteSpace($Model)) {
 	throw "No SAM3 model was found. Set OFXGGML_SAM_MODEL or place a .ggml model under ofxGgmlSamPointExample\bin\data\models."
+}
+if ($FixtureVerify -and -not $Json) {
+	throw "-FixtureVerify requires -Json so mask statistics can be checked."
+}
+if ($BoxVerify -and -not $Json) {
+	throw "-BoxVerify requires -Json so mask statistics can be checked."
 }
 
 if (-not $SkipBuild) {
@@ -259,6 +384,7 @@ function Invoke-SmokeRun {
 	$args = @("--model", $Model, "--backend", $Backend, "--image-size", $ImageSize.ToString())
 	if (-not [string]::IsNullOrWhiteSpace($Image)) { $args += @("--image", $Image) }
 	if ($Threads -gt 0) { $args += @("--threads", $Threads.ToString()) }
+	if ($BoxPrompt -or $BoxVerify) { $args += "--box" }
 	if ($WantJson) { $args += "--json" }
 	if ($SummaryOnly) { $args += "--summary-only" }
 	Write-Step "$RunLabel"
@@ -279,6 +405,8 @@ try {
 	$smokeOutput = Invoke-SmokeRun -RunLabel "Running SAM3 runtime smoke" -WantJson:$Json.IsPresent
 
 	$cacheInfo = $null
+	$fixtureInfo = $null
+	$boxInfo = $null
 	if ($CacheVerify) {
 		$cacheOutput = Invoke-SmokeRun -RunLabel "Running repeated prompt (cache verify)" -WantJson:$true
 	}
@@ -314,6 +442,12 @@ try {
 			$cacheInfo = [ordered] @{ FirstEncodeMs = 0; SecondEncodeMs = 0; CacheHit = $false; CacheRatio = 0; Error = $_.Exception.Message }
 		}
 	}
+	if ($FixtureVerify) {
+		$fixtureInfo = Test-FixtureSmokeResult -Result $result -ImagePath $Image
+	}
+	if ($BoxVerify) {
+		$boxInfo = Test-BoxSmokeResult -Result $result
+	}
 
 	$content = if ($Json -and $result) {
 		$envelope = [ordered] @{
@@ -322,6 +456,8 @@ try {
 			FailureCategory = $failureCategory
 		}
 		if ($CacheVerify -and $cacheInfo) { $envelope.CacheVerify = $cacheInfo }
+		if ($FixtureVerify -and $fixtureInfo) { $envelope.FixtureVerify = $fixtureInfo }
+		if ($BoxVerify -and $boxInfo) { $envelope.BoxVerify = $boxInfo }
 		if ($null -ne $result.Masks) { $envelope.Masks = $result.Masks }
 		$envelope | ConvertTo-Json -Depth 5
 	} else { $smokeOutput }
@@ -338,8 +474,13 @@ try {
 			SummaryOnly = $true
 			Summary = [ordered] @{
 				Passed = $false; InferenceChecked = $false; SmokeKind = "model-backed-sam3-point-segmentation"
+				PromptKind = $(if ($BoxPrompt -or $BoxVerify) { "box" } else { "point" })
 				Backend = $Backend; ModelPath = $Model; ImagePath = $Image; Threads = $Threads; ImageSize = $ImageSize
+				BoxPrompt = ($BoxPrompt.IsPresent -or $BoxVerify.IsPresent)
+				BoxX0 = 0.25; BoxY0 = 0.25; BoxX1 = 0.75; BoxY1 = 0.75
 				MaskCount = 0; LoadMs = 0; StateMs = 0; EncodeMs = 0; SegmentMs = 0; TotalMs = 0; Error = $errorMsg
+				FirstMaskWidth = 0; FirstMaskHeight = 0; FirstMaskActivePixels = 0; FirstMaskActiveRatio = 0
+				FirstMaskMeanValue = 0; FirstMaskPromptValue = 0; FirstMaskCenterValue = 0
 			}
 			FailureCategory = $failureCategory
 			ModelFamily = $modelFamily

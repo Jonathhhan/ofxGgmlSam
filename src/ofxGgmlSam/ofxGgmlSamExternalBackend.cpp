@@ -2,6 +2,7 @@
 
 #include "ofxGgmlSamUtils.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <cctype>
@@ -41,6 +42,24 @@ namespace {
 		}
 		if (!requestSettings.pointLabelFlag.empty()) {
 			merged.pointLabelFlag = requestSettings.pointLabelFlag;
+		}
+		if (!requestSettings.boxX0Flag.empty()) {
+			merged.boxX0Flag = requestSettings.boxX0Flag;
+		}
+		if (!requestSettings.boxY0Flag.empty()) {
+			merged.boxY0Flag = requestSettings.boxY0Flag;
+		}
+		if (!requestSettings.boxX1Flag.empty()) {
+			merged.boxX1Flag = requestSettings.boxX1Flag;
+		}
+		if (!requestSettings.boxY1Flag.empty()) {
+			merged.boxY1Flag = requestSettings.boxY1Flag;
+		}
+		if (!requestSettings.boxLabelFlag.empty()) {
+			merged.boxLabelFlag = requestSettings.boxLabelFlag;
+		}
+		if (!requestSettings.maskInputFlag.empty()) {
+			merged.maskInputFlag = requestSettings.maskInputFlag;
 		}
 		return merged;
 	}
@@ -113,6 +132,28 @@ namespace {
 				output.put(static_cast<char>(g));
 				output.put(static_cast<char>(b));
 			}
+		}
+		return static_cast<bool>(output);
+	}
+
+	bool writePgmMask(
+		const std::filesystem::path & path,
+		const ofxGgmlSamMask & mask,
+		std::string & error) {
+		if (!mask.isAllocated()) {
+			error = "SAM refinement mask is not allocated";
+			return false;
+		}
+		std::ofstream output(path, std::ios::binary);
+		if (!output) {
+			error = "could not write temporary SAM refinement mask";
+			return false;
+		}
+		output << "P5\n" << mask.width << " " << mask.height << "\n255\n";
+		for (const auto value : mask.values) {
+			const auto byte = static_cast<unsigned char>(
+				std::clamp(value, 0.0f, 1.0f) * 255.0f);
+			output.put(static_cast<char>(byte));
 		}
 		return static_cast<bool>(output);
 	}
@@ -190,7 +231,8 @@ namespace {
 		const ofxGgmlSamExternalAdapterSettings & settings,
 		const ofxGgmlSamRequest & request,
 		const std::filesystem::path & imagePath,
-		const std::filesystem::path & outputPath) {
+		const std::filesystem::path & outputPath,
+		const std::filesystem::path & maskInputPath) {
 		std::ostringstream command;
 		if (!settings.workingDirectory.empty()) {
 #if defined(_WIN32)
@@ -206,6 +248,9 @@ namespace {
 		appendFlagValue(command, settings.modelFlag, request.modelPath);
 		appendFlagValue(command, settings.imageFlag, imagePath.string());
 		appendFlagValue(command, settings.outputFlag, outputPath.string());
+		if (!maskInputPath.empty()) {
+			appendFlagValue(command, settings.maskInputFlag, maskInputPath.string());
+		}
 		for (const auto & point : request.points) {
 			appendFlagValue(command, settings.pointXFlag, point.x);
 			appendFlagValue(command, settings.pointYFlag, point.y);
@@ -213,6 +258,16 @@ namespace {
 				command,
 				settings.pointLabelFlag,
 				point.positive ? "positive" : "negative");
+		}
+		for (const auto & box : request.boxes) {
+			appendFlagValue(command, settings.boxX0Flag, box.x0);
+			appendFlagValue(command, settings.boxY0Flag, box.y0);
+			appendFlagValue(command, settings.boxX1Flag, box.x1);
+			appendFlagValue(command, settings.boxY1Flag, box.y1);
+			appendFlagValue(
+				command,
+				settings.boxLabelFlag,
+				box.positive ? "positive" : "negative");
 		}
 		for (const auto & argument : settings.extraArguments) {
 			if (!argument.empty()) {
@@ -261,13 +316,23 @@ ofxGgmlSamResult ofxGgmlSamExternalBackend::segment(
 
 	std::string error;
 	const auto imagePath = makeTempPath(".ppm");
+	const auto maskInputPath = request.refinementMask.isAllocated()
+		? makeTempPath(".input-mask.pgm")
+		: std::filesystem::path();
 	const auto maskPath = makeTempPath(".pgm");
 	if (!writePpmImage(imagePath, request.image, error)) {
 		return ofxGgmlSamMakeError(error);
 	}
-	const auto command = buildCommand(mergedSettings, request, imagePath, maskPath);
+	if (!maskInputPath.empty() && !writePgmMask(maskInputPath, request.refinementMask, error)) {
+		std::filesystem::remove(imagePath);
+		return ofxGgmlSamMakeError(error);
+	}
+	const auto command = buildCommand(mergedSettings, request, imagePath, maskPath, maskInputPath);
 	const auto exitCode = std::system(command.c_str());
 	std::filesystem::remove(imagePath);
+	if (!maskInputPath.empty()) {
+		std::filesystem::remove(maskInputPath);
+	}
 	if (exitCode != 0) {
 		std::filesystem::remove(maskPath);
 		return ofxGgmlSamMakeError("external SAM executable failed with exit code " + std::to_string(exitCode));
@@ -290,6 +355,10 @@ ofxGgmlSamResult ofxGgmlSamExternalBackend::segment(
 	if (!request.modelPath.empty()) {
 		result.metadata.push_back({ "modelPath", request.modelPath });
 	}
+	result.metadata.push_back({
+		"refinementMask",
+		request.refinementMask.isAllocated() ? "true" : "false"
+	});
 	result.masks.push_back(std::move(mask));
 	return result;
 }

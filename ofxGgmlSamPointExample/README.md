@@ -1,6 +1,6 @@
 # ofxGgmlSamPointExample
 
-Focused point-prompt segmentation example for `ofxGgmlSam`.
+Focused point/box-prompt segmentation example for `ofxGgmlSam`.
 
 Flow:
 
@@ -8,6 +8,7 @@ Flow:
 - choose an image path
 - switch between `sam3.cpp` and `sam.cpp`
 - place one positive point
+- switch to a positive box prompt for `sam3.cpp`
 - run segmentation
 - preview mask overlay
 
@@ -20,9 +21,10 @@ uses classic `.bin` SAM models and is currently a planned in-process port lane,
 not part of the repaired Visual Studio build.
 
 For `sam3.cpp`, the first run on a newly loaded image encodes the image and
-caches that state inside the loaded runtime. Later point changes on the same
-image reuse the cached image state and only run `sam3_segment_pvs`, which keeps
-interactive point refinement fast.
+caches that state inside the loaded runtime. Later point or box changes on the
+same image reuse the cached image state and only run `sam3_segment_pvs`, which
+keeps interactive prompt refinement fast. Box mode uses `sam3.cpp`; selecting
+the `sam.cpp` lane returns the example to point mode.
 
 This example should stay narrow. It is not the place for a full segmentation
 workbench.

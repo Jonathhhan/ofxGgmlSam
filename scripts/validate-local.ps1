@@ -78,15 +78,23 @@ Assert-Path (Join-Path $addonRoot "src\ofxGgmlSamVersion.h") "version header"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam.h") "ofxGgmlSamVersion.h" "public header"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSamVersion.h") "OFXGGML_SAM_VERSION_STRING" "version header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "types header"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "ofxGgmlSamBox" "types header box prompt"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "refinementMask" "types header refinement mask"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamTypes.h") "maskInputFlag" "external adapter mask input flag"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.h") "external backend header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "external backend source"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "for \(const auto & point : request\.points\)" "external backend multi-point forwarding"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "for \(const auto & box : request\.boxes\)" "external backend box forwarding"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamExternalBackend.cpp") "writePgmMask" "external backend refinement mask forwarding"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamCppAdapters.h") "sam.cpp adapter header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSam3Adapters.h") "sam3.cpp adapter header"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSam3Adapters.h") "pvs\.use_box = true" "sam3.cpp adapter box prompt support"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam.h") "ofxGgmlSamCppAdapters.h" "public header sam.cpp adapter export"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam.h") "ofxGgmlSam3Adapters.h" "public header sam3.cpp adapter export"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.h") "inference header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.cpp") "inference source"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.h") "segmentBatch" "inference header batch API"
+Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamInference.cpp") "ofxGgmlSamInference::segmentBatch" "inference source batch API"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.h") "utility header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam\ofxGgmlSamUtils.cpp") "utility source"
 Assert-Path (Join-Path $addonRoot "libs\sam.cpp\README.md") "sam.cpp package README"
@@ -112,6 +120,9 @@ Assert-FileContains (Join-Path $exampleRoot "src\ofApp.h") "ofxImGui.h" "point e
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "sam3.cpp" "point example sam3 backend"
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "sam.cpp" "point example sam backend"
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "maskTexture" "point example mask overlay"
+Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "kPromptLabels" "point example prompt mode selector"
+Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "mouseDragged" "point example box drag prompt"
+Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "setBoxFromCorners" "point example box prompt update"
 Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
 Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"
@@ -121,6 +132,9 @@ Assert-Path (Join-Path $scriptRoot "doctor-sam.ps1") "SAM doctor script"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.bat") "SAM doctor Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "doctor-sam.sh") "SAM doctor shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-doctor-sam.ps1") "SAM doctor smoke test"
+Assert-Path (Join-Path $scriptRoot "generate-sam-fixtures.ps1") "SAM fixture generator script"
+Assert-Path (Join-Path $scriptRoot "generate-sam-fixtures.bat") "SAM fixture generator Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "generate-sam-fixtures.sh") "SAM fixture generator shell wrapper"
 Assert-Path (Join-Path $scriptRoot "list-models.ps1") "SAM model discovery script"
 Assert-Path (Join-Path $scriptRoot "list-models.bat") "SAM model discovery Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "list-models.sh") "SAM model discovery shell wrapper"
@@ -128,6 +142,7 @@ Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "SAM3 runtime s
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.bat") "SAM3 runtime smoke Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.sh") "SAM3 runtime smoke shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1") "SAM3 runtime smoke contract test"
+Assert-FileContains (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "BoxVerify" "SAM3 runtime smoke box verification"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.bat") "sam.cpp install Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.sh") "sam.cpp install shell wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam3-cpp.ps1") "sam3.cpp install script"
@@ -137,15 +152,25 @@ Assert-Path (Join-Path $scriptRoot "build-sam3-cpp.bat") "sam3.cpp build Windows
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.ps1") "external adapter contract script"
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.bat") "external adapter contract Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "test-external-adapter-contract.sh") "external adapter contract shell wrapper"
+Assert-Path (Join-Path $scriptRoot "test-external-batch.ps1") "external batch script"
+Assert-Path (Join-Path $scriptRoot "test-external-batch.bat") "external batch Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "test-external-batch.sh") "external batch shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-addon.ps1") "test script"
 Assert-Path (Join-Path $scriptRoot "test-addon.bat") "test Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "test-addon.sh") "test shell wrapper"
 Assert-Path (Join-Path $addonRoot "tests\CMakeLists.txt") "test CMakeLists"
 Assert-Path (Join-Path $addonRoot "tests\test_main.cpp") "test source"
+Assert-FileContains (Join-Path $addonRoot "tests\test_main.cpp") "segmentBatch" "test source batch API"
 Assert-Path (Join-Path $addonRoot "tests\test_external_adapter_contract.cpp") "external adapter contract test source"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\CMakeLists.txt") "mock adapter CMakeLists"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "mock adapter source"
 Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "std::vector<float> pointXs" "mock adapter multi-point support"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "std::vector<float> boxX0s" "mock adapter box support"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamMockAdapter\main.cpp") "maskInputPath" "mock adapter refinement mask support"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\CMakeLists.txt") "external batch CMakeLists"
+Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "external batch source"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "segmentBatch" "external batch source batch API"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "--input-dir" "external batch source directory input"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\CMakeLists.txt") "SAM3 runtime smoke CMakeLists"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\main.cpp") "SAM3 runtime smoke source"
 
@@ -205,6 +230,17 @@ if (($modelDiscovery.NextCommands -join "`n") -notmatch "run-sam3-runtime-smoke\
 }
 Assert-FileContains (Join-Path $addonRoot "README.md") "scripts\\list-models\.bat -Json -SummaryOnly" "README"
 
+Write-Step "Checking SAM fixture generation"
+$fixtureDryRun = & (Join-Path $scriptRoot "generate-sam-fixtures.ps1") -DryRun -Verify 2>&1 6>&1 | Out-String
+if (!$fixtureDryRun.Contains("SAM fixture generation plan") -or
+	!$fixtureDryRun.Contains("Dry run complete; no files were changed")) {
+	throw "SAM fixture generation dry-run output was unexpected:`n$fixtureDryRun"
+}
+& (Join-Path $scriptRoot "generate-sam-fixtures.ps1") -Clean -Verify
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM fixture generation failed with exit code $LASTEXITCODE"
+}
+
 Write-Step "Running headless tests"
 & (Join-Path $scriptRoot "test-addon.ps1")
 if ($LASTEXITCODE -ne 0) {
@@ -216,6 +252,13 @@ $adapterDryRun = & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") 
 if (!$adapterDryRun.Contains("External SAM adapter contract plan") -or
 	!$adapterDryRun.Contains("Dry run complete; no files were changed")) {
 	throw "External adapter contract dry-run output was unexpected:`n$adapterDryRun"
+}
+
+Write-Step "Checking external batch workflow"
+$batchDryRun = & (Join-Path $scriptRoot "test-external-batch.ps1") -DryRun 2>&1 6>&1 | Out-String
+if (!$batchDryRun.Contains("External SAM batch plan") -or
+	!$batchDryRun.Contains("Dry run complete; no files were changed")) {
+	throw "External SAM batch dry-run output was unexpected:`n$batchDryRun"
 }
 
 Write-Step "Checking SAM doctor"
@@ -233,6 +276,11 @@ if ($LASTEXITCODE -ne 0) {
 & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean
 if ($LASTEXITCODE -ne 0) {
 	throw "External adapter contract failed with exit code $LASTEXITCODE"
+}
+
+& (Join-Path $scriptRoot "test-external-batch.ps1") -Clean
+if ($LASTEXITCODE -ne 0) {
+	throw "External batch workflow failed with exit code $LASTEXITCODE"
 }
 
 Write-Step "ofxGgmlSam local validation passed"

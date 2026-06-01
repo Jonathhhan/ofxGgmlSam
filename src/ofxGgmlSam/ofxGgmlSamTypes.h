@@ -12,6 +12,14 @@ struct ofxGgmlSamPoint {
 	bool positive = true;
 };
 
+struct ofxGgmlSamBox {
+	float x0 = 0.0f;
+	float y0 = 0.0f;
+	float x1 = 1.0f;
+	float y1 = 1.0f;
+	bool positive = true;
+};
+
 struct ofxGgmlSamExternalAdapterSettings {
 	std::string executablePath;
 	std::string workingDirectory;
@@ -22,6 +30,12 @@ struct ofxGgmlSamExternalAdapterSettings {
 	std::string pointXFlag = "--point-x";
 	std::string pointYFlag = "--point-y";
 	std::string pointLabelFlag = "--point-label";
+	std::string boxX0Flag = "--box-x0";
+	std::string boxY0Flag = "--box-y0";
+	std::string boxX1Flag = "--box-x1";
+	std::string boxY1Flag = "--box-y1";
+	std::string boxLabelFlag = "--box-label";
+	std::string maskInputFlag = "--mask-input";
 
 	bool isConfigured() const {
 		return !executablePath.empty();
@@ -42,16 +56,6 @@ struct ofxGgmlSamImage {
 	}
 };
 
-struct ofxGgmlSamRequest {
-	std::string modelPath;
-	std::string imagePath;
-	ofxGgmlSamImage image;
-	std::vector<ofxGgmlSamPoint> points;
-	ofxGgmlSamExternalAdapterSettings external;
-	int threads = -1;
-	bool returnMultipleMasks = true;
-};
-
 struct ofxGgmlSamMask {
 	int width = 0;
 	int height = 0;
@@ -59,8 +63,22 @@ struct ofxGgmlSamMask {
 	float score = 0.0f;
 
 	bool isAllocated() const {
-		return width > 0 && height > 0 && !values.empty();
+		return width > 0 && height > 0 &&
+			values.size() == static_cast<std::size_t>(width) *
+				static_cast<std::size_t>(height);
 	}
+};
+
+struct ofxGgmlSamRequest {
+	std::string modelPath;
+	std::string imagePath;
+	ofxGgmlSamImage image;
+	std::vector<ofxGgmlSamPoint> points;
+	std::vector<ofxGgmlSamBox> boxes;
+	ofxGgmlSamMask refinementMask;
+	ofxGgmlSamExternalAdapterSettings external;
+	int threads = -1;
+	bool returnMultipleMasks = true;
 };
 
 struct ofxGgmlSamResult {
