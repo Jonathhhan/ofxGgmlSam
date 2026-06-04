@@ -66,6 +66,7 @@ Assert-FileNotContains $addonConfig "\.local[/\\]runtimes" "addon config"
 Assert-Path (Join-Path $addonRoot "README.md") "README"
 Assert-Path (Join-Path $addonRoot "LICENSE") "license"
 Assert-Path (Join-Path $addonRoot "docs\SAM_WORKFLOWS.md") "SAM workflow docs"
+Assert-Path (Join-Path $addonRoot ".github\workflows\evidence-validation.yml") "evidence validation workflow"
 Assert-Path (Join-Path $addonRoot "tests\fixtures\README.md") "SAM fixture docs"
 Assert-Path (Join-Path $addonRoot "tests\fixtures\sam-point-square.ppm") "SAM point fixture"
 Assert-FileContains (Join-Path $addonRoot "README.md") "docs/SAM_WORKFLOWS.md" "README"
@@ -73,6 +74,8 @@ Assert-FileContains (Join-Path $addonRoot "docs\SAM_WORKFLOWS.md") "Planning han
 Assert-FileContains (Join-Path $addonRoot "docs\SAM_WORKFLOWS.md") "Validation ladder" "SAM workflow docs"
 Assert-FileContains (Join-Path $addonRoot "docs\SAM_WORKFLOWS.md") "generated masks" "SAM workflow docs"
 Assert-FileContains (Join-Path $addonRoot "docs\SAM_WORKFLOWS.md") "tests\\fixtures\\sam-point-square\.ppm" "SAM workflow docs"
+Assert-FileContains (Join-Path $addonRoot ".github\workflows\evidence-validation.yml") "evidence_profile:\s+advisory" "evidence validation workflow"
+Assert-FileContains (Join-Path $addonRoot ".github\workflows\evidence-validation.yml") "sam3-runtime-evidence\.json" "evidence validation workflow"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSam.h") "public header"
 Assert-Path (Join-Path $addonRoot "src\ofxGgmlSamVersion.h") "version header"
 Assert-FileContains (Join-Path $addonRoot "src\ofxGgmlSam.h") "ofxGgmlSamVersion.h" "public header"
@@ -144,9 +147,13 @@ Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.sh") "SAM3 runtime sm
 Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1") "SAM3 runtime smoke contract test"
 Assert-Path (Join-Path $scriptRoot "write-sam3-runtime-evidence.ps1") "SAM3 runtime evidence writer"
 Assert-Path (Join-Path $scriptRoot "write-sam3-runtime-evidence.bat") "SAM3 runtime evidence writer Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "run-sam3-evidence-pilot.ps1") "SAM3 evidence pilot script"
+Assert-Path (Join-Path $scriptRoot "run-sam3-evidence-pilot.bat") "SAM3 evidence pilot Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-evidence.ps1") "SAM3 runtime evidence writer contract test"
+Assert-Path (Join-Path $scriptRoot "test-sam3-evidence-pilot.ps1") "SAM3 evidence pilot contract test"
 Assert-FileContains (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "BoxVerify" "SAM3 runtime smoke box verification"
 Assert-FileContains (Join-Path $scriptRoot "write-sam3-runtime-evidence.ps1") "schema_version" "SAM3 runtime evidence schema wrapper"
+Assert-FileContains (Join-Path $scriptRoot "run-sam3-evidence-pilot.ps1") "validate-evidence.py" "SAM3 evidence pilot validator"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.bat") "sam.cpp install Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.sh") "sam.cpp install shell wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam3-cpp.ps1") "sam3.cpp install script"
@@ -281,6 +288,12 @@ Write-Step "Checking SAM3 runtime evidence wrapper contract"
 & (Join-Path $scriptRoot "test-sam3-runtime-evidence.ps1")
 if ($LASTEXITCODE -ne 0) {
 	throw "SAM3 runtime evidence wrapper contract failed with exit code $LASTEXITCODE"
+}
+
+Write-Step "Checking SAM3 evidence pilot contract"
+& (Join-Path $scriptRoot "test-sam3-evidence-pilot.ps1")
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM3 evidence pilot contract failed with exit code $LASTEXITCODE"
 }
 
 & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean

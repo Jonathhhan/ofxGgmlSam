@@ -1,0 +1,14 @@
+name: evidence-validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  evidence:
+    uses: Jonathhhan/ofxGgmlWorkflows/.github/workflows/evidence-validation.yml@main
+    with:
+      evidence_path: build/evidence/sam3-runtime-evidence.json
+      evidence_profile: advisory
+      quality_report_path: build/evidence/evidence-quality.md

@@ -109,9 +109,11 @@ a synthetic RGB image, loads a local SAM3/SAM2/EdgeTAM `.ggml` model, runs
 mask-count, and first-mask shape statistics; masks and generated media stay
 local.
 
-Use `scripts\write-sam3-runtime-evidence.bat` to convert a captured smoke JSON
-file into the neutral Evidence Schema v1 wrapper consumed by
-`ofxGgmlWorkflows`. Keep SAM-specific metrics nested in the wrapper so Core can
+Use `scripts\run-sam3-evidence-pilot.bat` as the happy path for local evidence.
+It runs the SAM3 smoke, writes the neutral Evidence Schema v1 wrapper, and calls
+the shared `ofxGgmlWorkflows` validator. Use
+`scripts\write-sam3-runtime-evidence.bat` only when converting an already
+captured smoke JSON file into the wrapper consumed by `ofxGgmlWorkflows`. Keep SAM-specific metrics nested in the wrapper so Core can
 read generic fields without taking a SAM dependency:
 
 The smoke can also use a redistributable fixture image instead of the synthetic
@@ -122,6 +124,7 @@ media. Regenerate and compare the fixture source with
 input path is needed:
 
 ```powershell
+scripts\run-sam3-evidence-pilot.bat -Backend cpu
 scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json
 scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json
 ```
@@ -152,6 +155,7 @@ Use the smallest command that proves the changed layer:
 | Backend-specific diagnosis | `scripts\doctor-sam.bat -Backend sam3.cpp` |
 | SAM3 runtime smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun` |
 | SAM3 fixture smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm` |
+| SAM3 evidence pilot | `scripts\run-sam3-evidence-pilot.bat -Backend cpu` |
 | SAM3 evidence wrapper | `scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json` |
 | SAM3 CPU runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly` |
 | SAM3 CPU box-prompt inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -BoxVerify` |

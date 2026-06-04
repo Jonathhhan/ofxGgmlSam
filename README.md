@@ -125,7 +125,15 @@ scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly
 ```
 
-Write a neutral Evidence Schema v1 wrapper from a captured smoke run with:
+Run the full local SAM3 evidence pilot with:
+
+```powershell
+scripts\run-sam3-evidence-pilot.bat -Backend cpu
+```
+
+The pilot chains runtime smoke, Evidence Schema v1 wrapper generation, and the
+shared `ofxGgmlWorkflows` validator. To write only the neutral wrapper from a
+captured smoke run:
 
 ```powershell
 scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json
@@ -238,6 +246,7 @@ From the addon root:
 scripts\doctor-sam.bat
 scripts\list-models.bat -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -DryRun
+scripts\run-sam3-evidence-pilot.bat -DryRun
 scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json
 scripts\test-addon.bat
 scripts\validate-local.bat
