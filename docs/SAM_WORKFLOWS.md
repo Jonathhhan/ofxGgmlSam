@@ -116,6 +116,12 @@ the shared `ofxGgmlWorkflows` validator. Use
 captured smoke JSON file into the wrapper consumed by `ofxGgmlWorkflows`. Keep SAM-specific metrics nested in the wrapper so Core can
 read generic fields without taking a SAM dependency:
 
+The advisory promotion workflow consumes that same evidence path through
+`ofxGgmlWorkflows`' `evidence-promotion-advisor.yml`. It should remain
+non-gating while the pilot is new: `current_profile` stays `advisory`,
+`candidate_profile` starts at `schema`, and `observed_clean_runs` stays `"0"`
+until the team has reviewed repeated clean evidence reports.
+
 The smoke can also use a redistributable fixture image instead of the synthetic
 input. The first committed fixture is `tests\fixtures\sam-point-square.ppm`, a
 tiny hand-authored RGB PPM image with no model weights, generated masks, or user
@@ -157,6 +163,7 @@ Use the smallest command that proves the changed layer:
 | SAM3 fixture smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm` |
 | SAM3 evidence pilot | `scripts\run-sam3-evidence-pilot.bat -Backend cpu` |
 | SAM3 evidence wrapper | `scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json` |
+| SAM3 evidence promotion advice | `.github\workflows\evidence-promotion-advisor.yml` |
 | SAM3 CPU runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly` |
 | SAM3 CPU box-prompt inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -BoxVerify` |
 | SAM3 fixture output check | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Image tests\fixtures\sam-point-square.ppm -Json -SummaryOnly -FixtureVerify` |

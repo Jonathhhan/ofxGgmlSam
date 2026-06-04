@@ -142,6 +142,12 @@ scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -Out
 
 The wrapper keeps SAM-specific timing and mask summary fields nested while exposing the required reusable workflow fields such as `schema_version`, `commit_sha`, `backend`, `result`, and `artifact_path`.
 
+The repository also calls the reusable evidence promotion advisor in advisory
+mode. It reads the same `build/evidence/sam3-runtime-evidence.json` path and
+writes recommendation artifacts under `build/evidence/` without requiring
+promotion. Keep `observed_clean_runs` at `"0"` until repeated local and CI
+evidence runs are reviewed.
+
 Verify the SAM3 in-process box prompt path with:
 
 ```powershell

@@ -6,6 +6,8 @@
   local SAM/SAM2/SAM3 runner executables.
 - Added a mock external adapter and contract test for the file-based
   model/image/point/mask protocol.
+- Added an advisory evidence promotion workflow for the SAM3 CPU evidence
+  pilot.
 - Upgraded the point example from a skeleton to an image-loading point prompt
   UI that can call the external adapter and preview returned masks.
 - Forwarded all request points to the external adapter as repeated point flags,
