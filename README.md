@@ -125,6 +125,15 @@ scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -Backend cuda -Json -SummaryOnly
 ```
 
+Write a neutral Evidence Schema v1 wrapper from a captured smoke run with:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json
+scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json
+```
+
+The wrapper keeps SAM-specific timing and mask summary fields nested while exposing the required reusable workflow fields such as `schema_version`, `commit_sha`, `backend`, `result`, and `artifact_path`.
+
 Verify the SAM3 in-process box prompt path with:
 
 ```powershell
@@ -229,6 +238,7 @@ From the addon root:
 scripts\doctor-sam.bat
 scripts\list-models.bat -Json -SummaryOnly
 scripts\run-sam3-runtime-smoke.bat -DryRun
+scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json
 scripts\test-addon.bat
 scripts\validate-local.bat
 ```

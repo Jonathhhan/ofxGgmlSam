@@ -142,7 +142,11 @@ Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "SAM3 runtime s
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.bat") "SAM3 runtime smoke Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-sam3-runtime-smoke.sh") "SAM3 runtime smoke shell wrapper"
 Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1") "SAM3 runtime smoke contract test"
+Assert-Path (Join-Path $scriptRoot "write-sam3-runtime-evidence.ps1") "SAM3 runtime evidence writer"
+Assert-Path (Join-Path $scriptRoot "write-sam3-runtime-evidence.bat") "SAM3 runtime evidence writer Windows wrapper"
+Assert-Path (Join-Path $scriptRoot "test-sam3-runtime-evidence.ps1") "SAM3 runtime evidence writer contract test"
 Assert-FileContains (Join-Path $scriptRoot "run-sam3-runtime-smoke.ps1") "BoxVerify" "SAM3 runtime smoke box verification"
+Assert-FileContains (Join-Path $scriptRoot "write-sam3-runtime-evidence.ps1") "schema_version" "SAM3 runtime evidence schema wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.bat") "sam.cpp install Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam-cpp.sh") "sam.cpp install shell wrapper"
 Assert-Path (Join-Path $scriptRoot "install-sam3-cpp.ps1") "sam3.cpp install script"
@@ -271,6 +275,12 @@ Write-Step "Checking SAM3 runtime smoke contract"
 & (Join-Path $scriptRoot "test-sam3-runtime-smoke.ps1")
 if ($LASTEXITCODE -ne 0) {
 	throw "SAM3 runtime smoke contract failed with exit code $LASTEXITCODE"
+}
+
+Write-Step "Checking SAM3 runtime evidence wrapper contract"
+& (Join-Path $scriptRoot "test-sam3-runtime-evidence.ps1")
+if ($LASTEXITCODE -ne 0) {
+	throw "SAM3 runtime evidence wrapper contract failed with exit code $LASTEXITCODE"
 }
 
 & (Join-Path $scriptRoot "test-external-adapter-contract.ps1") -Clean

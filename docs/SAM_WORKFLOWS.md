@@ -109,12 +109,22 @@ a synthetic RGB image, loads a local SAM3/SAM2/EdgeTAM `.ggml` model, runs
 mask-count, and first-mask shape statistics; masks and generated media stay
 local.
 
+Use `scripts\write-sam3-runtime-evidence.bat` to convert a captured smoke JSON
+file into the neutral Evidence Schema v1 wrapper consumed by
+`ofxGgmlWorkflows`. Keep SAM-specific metrics nested in the wrapper so Core can
+read generic fields without taking a SAM dependency:
+
 The smoke can also use a redistributable fixture image instead of the synthetic
 input. The first committed fixture is `tests\fixtures\sam-point-square.ppm`, a
 tiny hand-authored RGB PPM image with no model weights, generated masks, or user
 media. Regenerate and compare the fixture source with
 `scripts\generate-sam-fixtures.bat -Clean -Verify`. Use it when a deterministic
 input path is needed:
+
+```powershell
+scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -OutputPath .sam3-runtime-smoke.json
+scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json
+```
 
 ```powershell
 scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm
@@ -142,6 +152,7 @@ Use the smallest command that proves the changed layer:
 | Backend-specific diagnosis | `scripts\doctor-sam.bat -Backend sam3.cpp` |
 | SAM3 runtime smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun` |
 | SAM3 fixture smoke planning | `scripts\run-sam3-runtime-smoke.bat -DryRun -Image tests\fixtures\sam-point-square.ppm` |
+| SAM3 evidence wrapper | `scripts\write-sam3-runtime-evidence.bat -SmokePath .sam3-runtime-smoke.json -OutputPath build\evidence\sam3-runtime-evidence.json` |
 | SAM3 CPU runtime inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly` |
 | SAM3 CPU box-prompt inference | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Json -SummaryOnly -BoxVerify` |
 | SAM3 fixture output check | `scripts\run-sam3-runtime-smoke.bat -Backend cpu -Image tests\fixtures\sam-point-square.ppm -Json -SummaryOnly -FixtureVerify` |
