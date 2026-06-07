@@ -91,7 +91,9 @@ parallelism or embedding reuse should remain an adapter decision.
 `tools\ofxGgmlSamBatchExternal` is the first file/directory workflow on top of
 that boundary. It accepts repeated `.ppm`/`.pnm` inputs or an input directory,
 uses the external adapter contract, and writes local PGM masks outside the repo
-tree by default through `scripts\test-external-batch.bat`.
+tree by default through `scripts\test-external-batch.bat`. Use its `--dry-run`
+and `--json` flags to inspect image-set plans without requiring an adapter or
+writing masks.
 
 The `sam3.cpp` in-process adapter caches encoded image state by image
 fingerprint inside the loaded runtime. The first run on a changed image performs

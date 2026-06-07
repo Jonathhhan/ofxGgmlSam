@@ -30,6 +30,7 @@ struct Options {
 	bool hasBoxX1 = false;
 	bool hasBoxY1 = false;
 	bool hasAnyBoxFlag = false;
+	bool dryRun = false;
 	bool json = false;
 	bool summaryOnly = false;
 };
@@ -195,7 +196,8 @@ void printUsage() {
 		<< "usage: ofxGgmlSamBatchExternal --adapter runner --output-dir masks "
 		<< "[--input image.ppm ...] [--input-dir images]\n"
 		<< "       [--model model] [--point-x 0.5 --point-y 0.5 "
-		<< "--point-label positive] [--box-x0 ... --box-y0 ... --box-x1 ... --box-y1 ...]\n";
+		<< "--point-label positive] [--box-x0 ... --box-y0 ... --box-x1 ... --box-y1 ...]\n"
+		<< "       [--dry-run] [--json]\n";
 }
 
 bool parseOptions(int argc, char ** argv, Options & options) {
@@ -242,6 +244,8 @@ bool parseOptions(int argc, char ** argv, Options & options) {
 		} else if (arg == "--box-label") {
 			options.pendingBox.positive = nextValue(arg) != "negative";
 			options.hasAnyBoxFlag = true;
+		} else if (arg == "--dry-run") {
+			options.dryRun = true;
 		} else if (arg == "--json") {
 			options.json = true;
 		} else if (arg == "--summary-only") {
@@ -261,6 +265,43 @@ bool parseOptions(int argc, char ** argv, Options & options) {
 		options.boxes.push_back(options.pendingBox);
 	}
 	return true;
+}
+
+void printJsonPlan(const Options & options) {
+	std::cout << "{\n";
+	std::cout << "  \"name\": \"ofxGgmlSam external batch plan\",\n";
+	std::cout << "  \"dryRun\": true,\n";
+	std::cout << "  \"adapter\": \"" << jsonEscape(options.adapterPath) << "\",\n";
+	std::cout << "  \"model\": \"" << jsonEscape(options.modelPath) << "\",\n";
+	std::cout << "  \"outputDir\": \"" << jsonEscape(options.outputDir.string()) << "\",\n";
+	std::cout << "  \"inputCount\": " << options.inputs.size() << ",\n";
+	std::cout << "  \"point\": {\n";
+	std::cout << "    \"x\": " << options.point.x << ",\n";
+	std::cout << "    \"y\": " << options.point.y << ",\n";
+	std::cout << "    \"positive\": " << (options.point.positive ? "true" : "false") << "\n";
+	std::cout << "  },\n";
+	std::cout << "  \"boxCount\": " << options.boxes.size() << ",\n";
+	std::cout << "  \"inputs\": [\n";
+	for (std::size_t i = 0; i < options.inputs.size(); ++i) {
+		std::cout << "    \"" << jsonEscape(options.inputs[i].string()) << "\""
+			<< (i + 1 < options.inputs.size() ? "," : "") << "\n";
+	}
+	std::cout << "  ]\n";
+	std::cout << "}\n";
+}
+
+void printTextPlan(const Options & options) {
+	std::cout << "ofxGgmlSam external batch plan\n";
+	std::cout << "Adapter:    " << options.adapterPath << "\n";
+	std::cout << "Model:      " << options.modelPath << "\n";
+	std::cout << "OutputDir:  " << options.outputDir.string() << "\n";
+	std::cout << "Inputs:     " << options.inputs.size() << "\n";
+	std::cout << "Point:      " << options.point.x << ", " << options.point.y
+		<< (options.point.positive ? " positive" : " negative") << "\n";
+	std::cout << "Boxes:      " << options.boxes.size() << "\n";
+	for (const auto & input : options.inputs) {
+		std::cout << "  " << input.string() << "\n";
+	}
 }
 
 void printJsonSummary(
@@ -298,6 +339,14 @@ int main(int argc, char ** argv) {
 			collectInputDir(dir, options.inputs);
 		}
 		std::sort(options.inputs.begin(), options.inputs.end());
+		if (options.dryRun) {
+			if (options.json) {
+				printJsonPlan(options);
+			} else {
+				printTextPlan(options);
+			}
+			return EXIT_SUCCESS;
+		}
 		if (options.adapterPath.empty()) {
 			throw std::runtime_error("--adapter is required");
 		}

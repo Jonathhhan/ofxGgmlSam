@@ -187,6 +187,7 @@ Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\CMakeLists.txt"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "external batch source"
 Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "segmentBatch" "external batch source batch API"
 Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "--input-dir" "external batch source directory input"
+Assert-FileContains (Join-Path $addonRoot "tools\ofxGgmlSamBatchExternal\main.cpp") "--dry-run" "external batch source dry run"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\CMakeLists.txt") "SAM3 runtime smoke CMakeLists"
 Assert-Path (Join-Path $addonRoot "tools\ofxGgmlSam3RuntimeSmoke\main.cpp") "SAM3 runtime smoke source"
 

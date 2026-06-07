@@ -228,7 +228,7 @@ adapter, copies the redistributable PPM fixture into a temporary input
 directory, runs `segmentBatch`, and verifies that ordered output masks were
 written. The batch tool accepts repeated `--input` paths or one `--input-dir`
 of `.ppm`/`.pnm` files, plus `--adapter`, `--output-dir`, point flags, optional
-box flags, and `--json`.
+box flags, `--dry-run`, and `--json`.
 
 ## Status
 

@@ -150,6 +150,24 @@ New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
 Copy-Item -LiteralPath $fixturePath -Destination (Join-Path $inputDir "square-a.ppm") -Force
 Copy-Item -LiteralPath $fixturePath -Destination (Join-Path $inputDir "square-b.ppm") -Force
 
+Write-Step "Checking external SAM batch dry-run"
+$dryRunOutput = & $batchExe `
+	--input-dir $inputDir `
+	--output-dir $outputDir `
+	--point-x 0.5 `
+	--point-y 0.5 `
+	--dry-run `
+	--json 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+	throw "External SAM batch dry-run failed with exit code $LASTEXITCODE`n$dryRunOutput"
+}
+$dryRunSummary = $dryRunOutput | ConvertFrom-Json
+if ($dryRunSummary.name -ne "ofxGgmlSam external batch plan" -or
+	!$dryRunSummary.dryRun -or
+	$dryRunSummary.inputCount -ne 2) {
+	throw "External SAM batch dry-run JSON summary was unexpected:`n$dryRunOutput"
+}
+
 Write-Step "Running external SAM batch smoke"
 $batchOutput = & $batchExe `
 	--adapter $adapterExe `
