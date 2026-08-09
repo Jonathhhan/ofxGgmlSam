@@ -1,4 +1,4 @@
-param(
+﻿param(
 	[string] $SmokePath = ".sam3-runtime-smoke.json",
 	[string] $OutputPath = "build\evidence\sam3-runtime-evidence.json",
 	[string] $Repo = "ofxGgmlSam",
@@ -69,12 +69,33 @@ function Get-IsoTimestamp {
 	return (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
 
+function Get-DeviceSummary {
+	$processors = [Environment]::ProcessorCount
+	$arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+	$osLabel = Get-RunnerOs
+	$memEnv = $env:NUMBER_OF_PROCESSORS
+	if (-not [string]::IsNullOrWhiteSpace($memEnv)) { $processors = [int] $memEnv }
+	return "${osLabel} ${arch} (${processors} logical processors)"
+}
+
+function Get-ToolVersions {
+	$versions = [ordered] @{}
+	$psVer = $PSVersionTable.PSVersion
+	if ($null -ne $psVer) { $versions["powershell"] = "$($psVer.Major).$($psVer.Minor)" }
+	$versions["ggml_backend"] = $Backend
+	$versions["producer"] = "write-sam3-runtime-evidence.ps1"
+	$versions["producer_version"] = "1.0.0"
+	return $versions
+}
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $addonRoot = Resolve-Path (Join-Path $scriptRoot "..")
 $resolvedSmokePath = Resolve-AddonPath -Path $SmokePath
 if (!(Test-Path -LiteralPath $resolvedSmokePath -PathType Leaf)) {
 	throw "SAM3 runtime smoke JSON was not found: $resolvedSmokePath"
 }
+
+$startedAt = Get-IsoTimestamp
 
 $smoke = Get-Content -LiteralPath $resolvedSmokePath -Raw | ConvertFrom-Json
 $summary = $smoke.Summary
@@ -95,6 +116,7 @@ $result = if ($summary.Passed -eq $true) { "pass" } else { "fail" }
 $certificationLevel = if ($summary.Passed -eq $true -and $summary.InferenceChecked -eq $true) { "runtime-certified" } else { "declared" }
 $reasonCode = if ($smoke.FailureCategory) { $smoke.FailureCategory } elseif ($result -eq "pass") { "none" } else { "runtime_execution_failure" }
 $timestamp = Get-IsoTimestamp
+$completedAt = $timestamp
 $treeState = Get-TreeState
 $untrackedCount = Get-UntrackedCount
 
@@ -113,8 +135,12 @@ $evidence = [ordered] @{
 	command_exit_code = $(if ($result -eq "pass") { 0 } else { 1 })
 	certification_level = $certificationLevel
 	reason_code = $reasonCode
+	tool_versions = Get-ToolVersions
+	device_summary = Get-DeviceSummary
 	producer = "write-sam3-runtime-evidence.ps1"
 	producer_version = "1.0.0"
+	started_at = $startedAt
+	completed_at = $completedAt
 	tree_state = $treeState
 	untracked_count = $untrackedCount
 	subject_paths = @(
@@ -130,12 +156,14 @@ $evidence = [ordered] @{
 	smoke_summary = $summary
 }
 
+# CI workflow provenance - only include when env vars are set (GitHub Actions context)
 if ($env:GITHUB_RUN_ID) { $evidence.workflow_run_id = $env:GITHUB_RUN_ID }
 if ($env:GITHUB_RUN_ATTEMPT) { $evidence.workflow_run_attempt = $env:GITHUB_RUN_ATTEMPT }
 if ($env:GITHUB_WORKFLOW_REF) { $evidence.workflow_ref = $env:GITHUB_WORKFLOW_REF }
 if ($env:GITHUB_WORKFLOW_SHA) { $evidence.workflow_sha = $env:GITHUB_WORKFLOW_SHA }
 if ($env:GITHUB_JOB) { $evidence.job_name = $env:GITHUB_JOB }
 if ($env:GITHUB_EVENT_NAME) { $evidence.event_name = $env:GITHUB_EVENT_NAME }
+if ($env:RUNNER_LABELS) { $evidence.runner_labels = $env:RUNNER_LABELS }
 
 $content = $evidence | ConvertTo-Json -Depth 8
 $resolvedOutputPath = Resolve-AddonPath -Path $OutputPath
