@@ -131,6 +131,8 @@ Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "maskTexture" "poin
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "kPromptLabels" "point example prompt mode selector"
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "mouseDragged" "point example box drag prompt"
 Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "setBoxFromCorners" "point example box prompt update"
+Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "OF_MOUSE_BUTTON_RIGHT" "point example negative refinement point input"
+Assert-FileContains (Join-Path $exampleRoot "src\ofApp.cpp") "request\.points\.push_back" "point example multi-point prompt input"
 Assert-Path (Join-Path $scriptRoot "run-point-example.ps1") "point example run script"
 Assert-Path (Join-Path $scriptRoot "run-point-example.bat") "point example Windows wrapper"
 Assert-Path (Join-Path $scriptRoot "run-point-example.sh") "point example shell wrapper"

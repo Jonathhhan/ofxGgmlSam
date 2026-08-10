@@ -274,7 +274,8 @@ On macOS/Linux:
 - choose model path
 - choose image path
 - switch between `sam3.cpp` and `sam.cpp`
-- place one positive point
+- add positive points with left-click and negative refinement points with right-click
+- undo or clear point prompts
 - switch to a positive box prompt for `sam3.cpp`
 - run segmentation
 - preview mask overlay

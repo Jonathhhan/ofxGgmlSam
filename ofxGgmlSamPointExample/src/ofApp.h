@@ -87,4 +87,5 @@ private:
 	bool imageLoaded = false;
 	bool autoRun = false;
 	bool draggingBox = false;
+	bool pointPromptsPlaced = false;
 };

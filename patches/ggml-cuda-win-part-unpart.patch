@@ -2,7 +2,10 @@ diff --git a/src/ggml-cuda/ggml-cuda.cu b/src/ggml-cuda/ggml-cuda.cu
 index 8d21b22..e790b32 100644
 --- a/src/ggml-cuda/ggml-cuda.cu
 +++ b/src/ggml-cuda/ggml-cuda.cu
-@@ -2625,6 +2625,105 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor *
+@@ -2479,14 +2479,113 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor *
+     get_rows_cuda(dst_sorted.ptr, type_dst_sorted, ids_from_sorted, dst->data, dst->type,
+         ne0, ne0*ts_dst_sorted, ne_get_rows*ne0*ts_dst_sorted, ne_get_rows*ne0*ts_dst_sorted,
+         ne_get_rows, 1, 1, sizeof(int32_t), ne_get_rows*sizeof(int32_t), ne_get_rows*sizeof(int32_t),
          nb1, nb2, nb3, stream);
  }
 
@@ -106,9 +109,14 @@ index 8d21b22..e790b32 100644
 +}
 +
  static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
+     // why is this here instead of mul_mat?
+     if (dst->src[0] != nullptr && ggml_backend_buft_is_cuda_split(dst->src[0]->buffer->buft)) {
+         ggml_cuda_set_peer_access(dst->src[1]->ne[1], ctx.device);
+     }
+
      switch (dst->op) {
          case GGML_OP_ARGMAX:
-@@ -2952,6 +3051,12 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
+@@ -2814,6 +2913,12 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
          case GGML_OP_FILL:
              ggml_cuda_op_fill(ctx, dst);
              break;
@@ -118,6 +126,6 @@ index 8d21b22..e790b32 100644
 +        case GGML_OP_WIN_UNPART:
 +            ggml_cuda_op_win_unpart(ctx, dst);
 +            break;
-         case GGML_OP_CPY:
-         case GGML_OP_CONT:
-         case GGML_OP_DUP:
+         default:
+             return false;
+     }

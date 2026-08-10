@@ -113,6 +113,10 @@ if (-not (Test-Path (Join-Path $sourceDir "sam3.cpp"))) {
 	}
 }
 
+if ($BundledGgml -and [string]::IsNullOrWhiteSpace($GgmlSourceDir)) {
+	$GgmlSourceDir = Join-Path $sourceDir "ggml"
+}
+
 $enableCuda = $Cuda.IsPresent
 if (-not $Cuda -and -not $CpuOnly) {
 	$enableCuda = -not [string]::IsNullOrWhiteSpace((Get-CudaRoot))

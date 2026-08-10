@@ -254,11 +254,13 @@ void ofApp::draw() {
 			ofSetLineWidth(1.0f);
 			ofFill();
 		} else {
-			ofSetColor(request.points.front().positive ? ofColor::limeGreen : ofColor::red);
-			ofDrawCircle(
-				imageRect.x + request.points.front().x * imageRect.width,
-				imageRect.y + request.points.front().y * imageRect.height,
-				6.0f);
+			for (const auto & point : request.points) {
+				ofSetColor(point.positive ? ofColor::limeGreen : ofColor::red);
+				ofDrawCircle(
+					imageRect.x + point.x * imageRect.width,
+					imageRect.y + point.y * imageRect.height,
+					6.0f);
+			}
 		}
 	} else {
 		ofSetColor(80);
@@ -320,6 +322,12 @@ void ofApp::draw() {
 			modelPath = findDefaultModelPath();
 			copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
 		}
+		if (selectedBackendIndex == 1 && request.points.size() > 1) {
+			request.points.resize(1);
+			request.points.front().positive = true;
+			pointPromptsPlaced = false;
+			setStatus("sam.cpp uses one positive point; extra refinement points were cleared", true);
+		}
 		if (modelPath.empty()) {
 			setStatus("backend selected: " + getBackendLabel() + "; no compatible model auto-detected", true);
 		} else {
@@ -364,10 +372,26 @@ void ofApp::draw() {
 			box = ensureVisibleBox(ofxGgmlSamMakeBox(box.x0, box.y0, box.x1, box.y1, true));
 		}
 	} else {
-		auto & point = request.points.front();
+		auto & point = request.points.back();
 		promptChanged |= ImGui::SliderFloat("Point X", &point.x, 0.0f, 1.0f);
 		promptChanged |= ImGui::SliderFloat("Point Y", &point.y, 0.0f, 1.0f);
-		promptChanged |= ImGui::Checkbox("Positive", &point.positive);
+		if (selectedBackendIndex == 0) {
+			promptChanged |= ImGui::Checkbox("Positive", &point.positive);
+			ImGui::Text("Points: %d (left +, right -)", static_cast<int>(request.points.size()));
+			if (ImGui::Button("Undo Point") && request.points.size() > 1) {
+				request.points.pop_back();
+				promptChanged = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Clear Points")) {
+				request.points.assign(1, ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+				pointPromptsPlaced = false;
+				promptChanged = true;
+			}
+		} else {
+			point.positive = true;
+			ImGui::TextUnformatted("sam.cpp: one positive point");
+		}
 	}
 	if (promptChanged && autoRun) {
 		runSegmentation();
@@ -393,7 +417,9 @@ void ofApp::exit() {
 }
 
 void ofApp::mousePressed(int x, int y, int button) {
-	if (button != OF_MOUSE_BUTTON_LEFT || !imageLoaded) {
+	const bool positivePoint = button == OF_MOUSE_BUTTON_LEFT;
+	const bool negativePoint = button == OF_MOUSE_BUTTON_RIGHT;
+	if ((!positivePoint && !negativePoint) || !imageLoaded) {
 		return;
 	}
 	const auto imageRect = getImageRect();
@@ -403,11 +429,22 @@ void ofApp::mousePressed(int x, int y, int button) {
 	ensurePromptDefaults();
 	const auto normalized = getNormalizedImagePoint(x, y);
 	if (isBoxPromptSelected()) {
+		if (!positivePoint) {
+			return;
+		}
 		draggingBox = true;
 		boxDragStart = normalized;
 		setBoxFromCorners(boxDragStart, normalized);
 	} else {
-		request.points.front() = ofxGgmlSamMakePoint(normalized.x, normalized.y, true);
+		if (selectedBackendIndex == 1) {
+			request.points.assign(1, ofxGgmlSamMakePoint(normalized.x, normalized.y, true));
+		} else {
+			if (!pointPromptsPlaced) {
+				request.points.clear();
+				pointPromptsPlaced = true;
+			}
+			request.points.push_back(ofxGgmlSamMakePoint(normalized.x, normalized.y, positivePoint));
+		}
 	}
 	if (autoRun && !isBoxPromptSelected()) {
 		runSegmentation();
@@ -603,7 +640,6 @@ void ofApp::runSegmentation() {
 		request.boxes.resize(1);
 	} else {
 		request.boxes.clear();
-		request.points.resize(1);
 	}
 
 	SegmentationJob job;
