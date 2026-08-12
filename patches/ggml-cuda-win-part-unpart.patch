@@ -1,14 +1,11 @@
 diff --git a/src/ggml-cuda/ggml-cuda.cu b/src/ggml-cuda/ggml-cuda.cu
-index 8d21b22..e790b32 100644
+index a0e6de7..a343dc6 100644
 --- a/src/ggml-cuda/ggml-cuda.cu
 +++ b/src/ggml-cuda/ggml-cuda.cu
-@@ -2479,14 +2479,113 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor *
-     get_rows_cuda(dst_sorted.ptr, type_dst_sorted, ids_from_sorted, dst->data, dst->type,
-         ne0, ne0*ts_dst_sorted, ne_get_rows*ne0*ts_dst_sorted, ne_get_rows*ne0*ts_dst_sorted,
-         ne_get_rows, 1, 1, sizeof(int32_t), ne_get_rows*sizeof(int32_t), ne_get_rows*sizeof(int32_t),
-         nb1, nb2, nb3, stream);
+@@ -2009,3 +2009,102 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor *
  }
-
+-
++
 +static __global__ void win_part_f32(
 +        const float * src, float * dst,
 +        int64_t src_ne1, int64_t src_ne2,
@@ -109,16 +106,12 @@ index 8d21b22..e790b32 100644
 +}
 +
  static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct ggml_tensor * dst) {
-     // why is this here instead of mul_mat?
-     if (dst->src[0] != nullptr && ggml_backend_buft_is_cuda_split(dst->src[0]->buffer->buft)) {
-         ggml_cuda_set_peer_access(dst->src[1]->ne[1], ctx.device);
-     }
-
-     switch (dst->op) {
-         case GGML_OP_ARGMAX:
-@@ -2814,6 +2913,12 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
+@@ -2347,7 +2446,13 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
          case GGML_OP_FILL:
              ggml_cuda_op_fill(ctx, dst);
+             break;
+         case GGML_OP_LIGHTNING_INDEXER:
+             ggml_cuda_lightning_indexer(ctx, dst);
              break;
 +        case GGML_OP_WIN_PART:
 +            ggml_cuda_op_win_part(ctx, dst);
@@ -127,5 +120,3 @@ index 8d21b22..e790b32 100644
 +            ggml_cuda_op_win_unpart(ctx, dst);
 +            break;
          default:
-             return false;
-     }

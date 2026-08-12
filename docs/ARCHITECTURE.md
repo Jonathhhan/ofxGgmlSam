@@ -59,12 +59,14 @@ ignored `source` folder, and local build products stay under ignored `lib` or
 build directories. A project that enables an in-process adapter should add the
 matching runtime include, source, and library paths explicitly.
 
-SAM3 CUDA builds prefer the shared ggml checkout from
+SAM3 builds use the shared ggml checkout from
 `ofxGgmlCore\libs\ggml\.source` so the adapter lane stays aligned with the
-broader ecosystem runtime. `scripts\build-sam3-cpp.ps1` applies the local
-`patches\ggml-cuda-win-part-unpart.patch` compatibility patch when the selected
-ggml source does not yet implement `GGML_OP_WIN_PART` and
-`GGML_OP_WIN_UNPART` on CUDA.
+broader ecosystem runtime. The bundled checkout is an explicit fallback rather
+than an automatic substitution. `scripts\build-sam3-cpp.ps1` applies the local
+`patches\ggml-cuda-win-part-unpart.patch` compatibility patch to an isolated
+copy in the ignored SAM3 build directory when the selected ggml source does not
+yet implement `GGML_OP_WIN_PART` and `GGML_OP_WIN_UNPART` on CUDA. It must not
+modify the sibling Core checkout.
 
 See `docs/SAM_WORKFLOWS.md` before expanding this lane. It defines the planning
 handoff, generated-mask boundaries, prompt-type split, external adapter

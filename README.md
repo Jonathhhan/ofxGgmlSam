@@ -79,10 +79,15 @@ scripts\build-sam3-cpp.bat -CpuOnly
 ```
 
 Use `scripts\build-sam3-cpp.bat -Cuda` when CUDA Toolkit and Visual Studio CUDA
-integration are installed. CUDA builds use the sibling
-`ofxGgmlCore\libs\ggml\.source` checkout when it is available, and the build
-script applies `patches\ggml-cuda-win-part-unpart.patch` if that ggml checkout
-does not already expose SAM3's CUDA window partition ops. Override
+integration are installed. Builds use the sibling
+`ofxGgmlCore\libs\ggml\.source` checkout by default and fail clearly when
+it is unavailable. The build
+script applies `patches\ggml-cuda-win-part-unpart.patch` to an isolated source
+copy under the ignored SAM3 build directory if the Core checkout does not
+already expose SAM3's CUDA window partition ops. The Core checkout is never
+patched in place. Use `-BundledGgml` only as an explicit fallback. Run
+`scripts\build-sam3-cpp.bat -Cuda -CheckOnly` to inspect the selected Core
+revision and verify the CUDA compatibility patch without compiling. Override
 `OFXGGML_SAM_CPP_DIR` or
 `OFXGGML_SAM3_CPP_DIR` only when you want the raw upstream checkout somewhere
 outside `libs/sam.cpp/source` or `libs/sam3.cpp/source`.
