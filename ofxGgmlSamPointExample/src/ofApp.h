@@ -69,6 +69,7 @@ private:
 	void updateMaskTexture();
 	void setStatus(const std::string & message, bool warning = false);
 	ofRectangle getImageRect() const;
+	ofRectangle getControlPanelRect() const;
 
 	ofxImGui::Gui gui;
 	ofxGgmlSamRequest request;

@@ -16,6 +16,9 @@ namespace {
 		"Point",
 		"Box"
 	};
+	constexpr float kLayoutMargin = 24.0f;
+	constexpr float kControlPanelWidth = 400.0f;
+	constexpr float kCanvasPanelGap = 16.0f;
 
 	std::string getEnvString(const std::string & name) {
 		const auto value = std::getenv(name.c_str());
@@ -270,8 +273,13 @@ void ofApp::draw() {
 	}
 
 	gui.begin();
-	ImGui::SetNextWindowSize(ImVec2(480, 330), ImGuiCond_FirstUseEver);
-	ImGui::Begin("ofxGgmlSam Point Example");
+	const auto controlPanelRect = getControlPanelRect();
+	ImGui::SetNextWindowPos(ImVec2(controlPanelRect.x, controlPanelRect.y), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(controlPanelRect.width, controlPanelRect.height), ImGuiCond_Always);
+	ImGui::Begin(
+		"ofxGgmlSam Point Example",
+		nullptr,
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
 	static char modelBuffer[1024];
 	static char imageBuffer[1024];
@@ -322,6 +330,7 @@ void ofApp::draw() {
 			modelPath = findDefaultModelPath();
 			copyToBuffer(modelPath, modelBuffer, sizeof(modelBuffer));
 		}
+		ensurePromptDefaults();
 		if (selectedBackendIndex == 1 && request.points.size() > 1) {
 			request.points.resize(1);
 			request.points.front().positive = true;
@@ -372,24 +381,40 @@ void ofApp::draw() {
 			box = ensureVisibleBox(ofxGgmlSamMakeBox(box.x0, box.y0, box.x1, box.y1, true));
 		}
 	} else {
-		auto & point = request.points.back();
-		promptChanged |= ImGui::SliderFloat("Point X", &point.x, 0.0f, 1.0f);
-		promptChanged |= ImGui::SliderFloat("Point Y", &point.y, 0.0f, 1.0f);
+		ImGui::Text("Points: %d (left +, right -)", static_cast<int>(request.points.size()));
+		if (request.points.empty()) {
+			ImGui::TextUnformatted("Click the image to add a point.");
+		} else {
+			auto & point = request.points.back();
+			promptChanged |= ImGui::SliderFloat("Point X", &point.x, 0.0f, 1.0f);
+			promptChanged |= ImGui::SliderFloat("Point Y", &point.y, 0.0f, 1.0f);
+			if (selectedBackendIndex == 0) {
+				promptChanged |= ImGui::Checkbox("Positive", &point.positive);
+			} else {
+				point.positive = true;
+			}
+		}
 		if (selectedBackendIndex == 0) {
-			promptChanged |= ImGui::Checkbox("Positive", &point.positive);
-			ImGui::Text("Points: %d (left +, right -)", static_cast<int>(request.points.size()));
-			if (ImGui::Button("Undo Point") && request.points.size() > 1) {
+			if (ImGui::Button("Undo Point") && !request.points.empty()) {
 				request.points.pop_back();
-				promptChanged = true;
+				pointPromptsPlaced = !request.points.empty();
+				if (request.points.empty()) {
+					maskTexture.clear();
+					lastResult = {};
+					setStatus("point prompts cleared");
+				} else {
+					promptChanged = true;
+				}
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Clear Points")) {
-				request.points.assign(1, ofxGgmlSamMakePoint(0.5f, 0.5f, true));
+				request.points.clear();
 				pointPromptsPlaced = false;
-				promptChanged = true;
+				maskTexture.clear();
+				lastResult = {};
+				setStatus("point prompts cleared");
 			}
 		} else {
-			point.positive = true;
 			ImGui::TextUnformatted("sam.cpp: one positive point");
 		}
 	}
@@ -541,7 +566,11 @@ void ofApp::loadGeneratedImage() {
 	imageLoaded = true;
 	updateRequestImage();
 	ensurePromptDefaults();
-	request.points.front() = ofxGgmlSamMakePoint(0.48f, 0.52f, true);
+	if (request.points.empty()) {
+		request.points.push_back(ofxGgmlSamMakePoint(0.48f, 0.52f, true));
+	} else {
+		request.points.front() = ofxGgmlSamMakePoint(0.48f, 0.52f, true);
+	}
 	request.boxes.front() = ensureVisibleBox(ofxGgmlSamMakeBox(0.25f, 0.25f, 0.75f, 0.75f, true));
 }
 
@@ -627,6 +656,12 @@ void ofApp::runSegmentation() {
 		return;
 	}
 	ensurePromptDefaults();
+	if (!isBoxPromptSelected() && request.points.empty()) {
+		setStatus("add at least one point prompt", true);
+		maskTexture.clear();
+		lastResult = {};
+		return;
+	}
 	if (isBoxPromptSelected() && selectedBackendIndex != 0) {
 		setStatus("box prompts require sam3.cpp", true);
 		return;
@@ -658,7 +693,7 @@ void ofApp::runSegmentation() {
 }
 
 void ofApp::ensurePromptDefaults() {
-	if (request.points.empty()) {
+	if (selectedBackendIndex == 1 && request.points.empty()) {
 		request.points.push_back(ofxGgmlSamMakePoint(0.5f, 0.5f, true));
 	}
 	if (request.boxes.empty()) {
@@ -718,15 +753,35 @@ void ofApp::setStatus(const std::string & message, bool warning) {
 }
 
 ofRectangle ofApp::getImageRect() const {
-	const float margin = 24.0f;
-	const float top = 24.0f;
-	const float maxWidth = ofGetWidth() - margin * 2.0f;
-	const float maxHeight = ofGetHeight() - top - margin;
+	const auto controlPanelRect = getControlPanelRect();
+	const float maxWidth = std::max(1.0f, controlPanelRect.x - kCanvasPanelGap - kLayoutMargin);
+	const float maxHeight = std::max(1.0f, ofGetHeight() - kLayoutMargin * 2.0f);
 	if (!imageLoaded || image.getWidth() <= 0 || image.getHeight() <= 0) {
-		return { margin, top, maxWidth, maxHeight };
+		return { kLayoutMargin, kLayoutMargin, maxWidth, maxHeight };
 	}
-	const float scale = std::min(maxWidth / image.getWidth(), maxHeight / image.getHeight());
+	const float scale = std::min({
+		1.0f,
+		maxWidth / image.getWidth(),
+		maxHeight / image.getHeight()
+	});
 	const float width = image.getWidth() * scale;
 	const float height = image.getHeight() * scale;
-	return { margin, top, width, height };
+	return {
+		kLayoutMargin + (maxWidth - width) * 0.5f,
+		kLayoutMargin + (maxHeight - height) * 0.5f,
+		width,
+		height
+	};
+}
+
+ofRectangle ofApp::getControlPanelRect() const {
+	const float width = std::min(
+		kControlPanelWidth,
+		std::max(280.0f, ofGetWidth() * 0.45f));
+	return {
+		std::max(kLayoutMargin, ofGetWidth() - kLayoutMargin - width),
+		kLayoutMargin,
+		width,
+		std::max(1.0f, ofGetHeight() - kLayoutMargin * 2.0f)
+	};
 }
