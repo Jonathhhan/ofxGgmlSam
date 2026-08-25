@@ -24,14 +24,23 @@
 
 namespace {
 
+struct PromptPoint {
+	float x = 0.5f;
+	float y = 0.5f;
+	bool positive = true;
+};
+
 struct Options {
 	std::string modelPath;
 	std::string imagePath;
+	std::string outputPath;
+	std::string pointLabel = "positive";
 	std::string backend = "cpu";
 	int threads = 0;
 	int imageSize = 256;
 	float pointX = 0.5f;
 	float pointY = 0.5f;
+	std::vector<PromptPoint> points;
 	float boxX0 = 0.25f;
 	float boxY0 = 0.25f;
 	float boxX1 = 0.75f;
@@ -158,12 +167,24 @@ std::string requireValue(int & index, int argc, char ** argv, const std::string 
 
 Options parseOptions(int argc, char ** argv) {
 	Options options;
+	PromptPoint currentPoint;
+	bool hasCurrentPoint = false;
 	for (int i = 1; i < argc; ++i) {
 		const std::string arg = argv[i];
 		if (arg == "--model") {
 			options.modelPath = requireValue(i, argc, argv, arg);
 		} else if (arg == "--image") {
 			options.imagePath = requireValue(i, argc, argv, arg);
+		} else if (arg == "--output") {
+			options.outputPath = requireValue(i, argc, argv, arg);
+		} else if (arg == "--point-label") {
+			options.pointLabel = lower(requireValue(i, argc, argv, arg));
+			if (options.pointLabel != "positive" && options.pointLabel != "negative") {
+				throw std::runtime_error("--point-label must be positive or negative");
+			}
+			if (hasCurrentPoint) {
+				currentPoint.positive = options.pointLabel == "positive";
+			}
 		} else if (arg == "--backend") {
 			options.backend = lower(requireValue(i, argc, argv, arg));
 		} else if (arg == "--threads") {
@@ -171,9 +192,17 @@ Options parseOptions(int argc, char ** argv) {
 		} else if (arg == "--image-size") {
 			options.imageSize = parseInt(requireValue(i, argc, argv, arg), arg);
 		} else if (arg == "--point-x") {
+			if (hasCurrentPoint) {
+				options.points.push_back(currentPoint);
+			}
 			options.pointX = parseFloat(requireValue(i, argc, argv, arg), arg);
+			currentPoint = { options.pointX, options.pointY, options.pointLabel == "positive" };
+			hasCurrentPoint = true;
 		} else if (arg == "--point-y") {
 			options.pointY = parseFloat(requireValue(i, argc, argv, arg), arg);
+			if (hasCurrentPoint) {
+				currentPoint.y = options.pointY;
+			}
 		} else if (arg == "--box") {
 			options.useBox = true;
 		} else if (arg == "--box-x0") {
@@ -198,10 +227,13 @@ Options parseOptions(int argc, char ** argv) {
 			options.backend = "cuda";
 		} else if (arg == "--help" || arg == "-h") {
 			throw std::runtime_error(
-				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--image fixture.ppm] [--box] [--json] [--summary-only]");
+				"usage: ofxGgmlSam3RuntimeSmoke --model path --backend cpu|cuda [--image input.ppm] [--output mask.pgm] [--point-label positive|negative] [--box] [--json] [--summary-only]");
 		} else {
 			throw std::runtime_error("unknown argument: " + arg);
 		}
+	}
+	if (hasCurrentPoint) {
+		options.points.push_back(currentPoint);
 	}
 	if (options.modelPath.empty()) {
 		throw std::runtime_error("--model is required");
@@ -209,11 +241,18 @@ Options parseOptions(int argc, char ** argv) {
 	if (options.backend != "cpu" && options.backend != "cuda") {
 		throw std::runtime_error("--backend must be cpu or cuda");
 	}
+	if (options.pointLabel != "positive" && options.pointLabel != "negative") {
+		throw std::runtime_error("--point-label must be positive or negative");
+	}
 	if (options.imageSize < 32) {
 		throw std::runtime_error("--image-size must be at least 32");
 	}
 	options.pointX = std::clamp(options.pointX, 0.0f, 1.0f);
 	options.pointY = std::clamp(options.pointY, 0.0f, 1.0f);
+	for (auto & point : options.points) {
+		point.x = std::clamp(point.x, 0.0f, 1.0f);
+		point.y = std::clamp(point.y, 0.0f, 1.0f);
+	}
 	options.boxX0 = std::clamp(options.boxX0, 0.0f, 1.0f);
 	options.boxY0 = std::clamp(options.boxY0, 0.0f, 1.0f);
 	options.boxX1 = std::clamp(options.boxX1, 0.0f, 1.0f);
@@ -344,6 +383,34 @@ double normalizedMaskValue(Value value) {
 	const double numericValue = static_cast<double>(value);
 	const double normalized = numericValue > 1.0 ? numericValue / 255.0 : numericValue;
 	return std::clamp(normalized, 0.0, 1.0);
+}
+
+template <typename Mask>
+void writeMaskPgm(const Mask & mask, const std::string & outputPath) {
+	if (outputPath.empty()) {
+		return;
+	}
+	if (mask.width <= 0 || mask.height <= 0) {
+		throw std::runtime_error("cannot write mask with invalid dimensions");
+	}
+	const size_t expectedSize = static_cast<size_t>(mask.width) * static_cast<size_t>(mask.height);
+	if (mask.data.size() < expectedSize) {
+		throw std::runtime_error("cannot write incomplete mask data");
+	}
+
+	std::ofstream output(outputPath, std::ios::binary);
+	if (!output) {
+		throw std::runtime_error("failed to open mask output: " + outputPath);
+	}
+	output << "P5\n" << mask.width << " " << mask.height << "\n255\n";
+	for (size_t i = 0; i < expectedSize; ++i) {
+		const auto byteValue = static_cast<unsigned char>(
+			std::lround(normalizedMaskValue(mask.data[i]) * 255.0));
+		output.put(static_cast<char>(byteValue));
+	}
+	if (!output) {
+		throw std::runtime_error("failed to write mask output: " + outputPath);
+	}
 }
 
 template <typename Values>
@@ -582,10 +649,20 @@ int main(int argc, char ** argv) {
 				options.boxY1 * static_cast<float>(image.height)
 			};
 		} else {
-			pvs.pos_points.push_back({
-				options.pointX * static_cast<float>(image.width),
-				options.pointY * static_cast<float>(image.height)
-			});
+			const auto points = options.points.empty()
+				? std::vector<PromptPoint>{ { options.pointX, options.pointY, options.pointLabel == "positive" } }
+				: options.points;
+			for (const auto & prompt : points) {
+				const sam3_point point{
+					prompt.x * static_cast<float>(image.width),
+					prompt.y * static_cast<float>(image.height)
+				};
+				if (prompt.positive) {
+					pvs.pos_points.push_back(point);
+				} else {
+					pvs.neg_points.push_back(point);
+				}
+			}
 		}
 
 		const auto segmentStart = Clock::now();
@@ -597,6 +674,7 @@ int main(int argc, char ** argv) {
 		if (result.detections.empty()) {
 			throw std::runtime_error("sam3_segment_pvs produced no detections");
 		}
+		writeMaskPgm(result.detections.front().mask, options.outputPath);
 
 		if (options.json) {
 			stdoutSilencer.stop();
